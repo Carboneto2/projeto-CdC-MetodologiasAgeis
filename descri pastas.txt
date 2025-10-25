@@ -1,9 +1,27 @@
-📁 projeto-CdC-MetodologiasAgeis/
+📁 ProjetoConselhoClasse/
 │
-├── 📁 templates/
-│   └── 📄 index.html         # A interface do usuário (frontend)
+├── 📁 backend/                     # Código do servidor (Flask)
+│   ├── 📄 app.py                   # Arquivo principal que inicializa o servidor e conecta o frontend
+│   └── 📁 flaskr/                  # Scripts auxiliares do backend
+│       └── 📄 schema.sql           # Banco de dados do sistema
 │
-├── 📁 venv/                   # Pasta do ambiente virtual (gerada automaticamente)NÂO MEXER
+├── 📁 frontend/                    # Todos os arquivos do frontend
+│   ├── 📄 index.html               # Página inicial do sistema
+│   ├── 📄 about.html               # Página de informações sobre o projeto
+│   ├── 📄 style.css                # Estilos da interface
+│   └── 📄 script.js                # Scripts de interação do frontend
 │
-├── 📄 .gitignore             # Arquivo para dizer ao Git o que ignorar
-├── 📄 README.md               # Documentação principal do projeto
+├── 📄 .gitignore                   # Arquivo para dizer ao Git o que ignorar
+├── 📄 README.md                    # Documentação principal do projeto
+└── 📄 descri pastas.txt            # Este arquivo de descrição da estrutura do projeto
+
+---
+
+💡 Observações:
+- O projeto foi reorganizado para separar frontend e backend de forma clara.
+- Não mexer na pasta `backend/flaskr/schema.sql` sem necessidade, pois contém dados importantes.
+- Para rodar o sistema localmente:
+  1. Ativar o ambiente virtual (venv) se houver.
+  2. Entrar na pasta `backend`.
+  3. Rodar `python app.py` para iniciar o servidor Flask.
+  4. Abrir o navegador em http://127.0.0.1:5000
