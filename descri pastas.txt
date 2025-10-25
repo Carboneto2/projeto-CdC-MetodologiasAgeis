@@ -6,8 +6,4 @@
 ├── 📁 venv/                   # Pasta do ambiente virtual (gerada automaticamente)NÂO MEXER
 │
 ├── 📄 .gitignore             # Arquivo para dizer ao Git o que ignorar
-├── 📄 app.py                 # O servidor web Flask (backend da coleta)
-├── 📄 bot.py                  # O robô de automação com Selenium (RPA)
-├── 📄 IEDriverServer.exe      # O driver do Selenium para o Modo IE
 ├── 📄 README.md               # Documentação principal do projeto
-└── 📄 requirements.txt        # Lista de bibliotecas Python necessárias
