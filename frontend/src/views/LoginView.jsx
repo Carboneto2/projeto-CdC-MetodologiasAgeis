@@ -1,12 +1,11 @@
 import React, { useState } from "react";
+
 // Importamos os componentes de UI que criamos
 import Card from "../components/Card";
 import Input from "../components/Input";
 import Button from "../components/Button";
 import Tag from "../components/Tag";
 
-// A função do hook não é importada, apenas os resultados (login, register)
-// que são passados como "props" pelo App.jsx
 export default function LoginView({ login, register }) {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState("");
@@ -15,7 +14,17 @@ export default function LoginView({ login, register }) {
   const [err, setErr] = useState("");
 
   const handleSubmit = (e) => {
-    // ... (cole o resto da função handleSubmit aqui)
+    e.preventDefault();
+    setErr("");
+    if (isRegister) {
+      const r = register(nome.trim(), email.trim(), senha);
+      if (!r.ok) return setErr(r.message);
+      setIsRegister(false); // Volta para a tela de login
+      return;
+    }
+    const r = login(email.trim(), senha);
+    if (!r.ok) return setErr(r.message);
+    // sucesso: App re-renderiza porque o mesmo hook de auth é usado lá
   };
 
   return (
@@ -25,10 +34,56 @@ export default function LoginView({ login, register }) {
         title={isRegister ? "Criar conta" : "Entrar"}
         subtitle="Sistema de Conselho de Classe"
       >
-        {/* Cole o resto do JSX do LoginView aqui */}
         {err && <div className="mb-3 text-sm text-red-600">{err}</div>}
+
         <form onSubmit={handleSubmit} className="space-y-3">
-          {/* ... etc ... */}
+          {isRegister && (
+            <div>
+              <label className="text-sm">Nome</label>
+              <Input
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                placeholder="Seu nome"
+                required
+              />
+            </div>
+          )}
+          <div>
+            <label className="text-sm">E-mail</label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="email@escola"
+              required
+            />
+          </div>
+          <div>
+            <label className="text-sm">Senha</label>
+            <Input
+              type="password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              placeholder="••••••"
+              required
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <Button className="bg-black text-white" type="submit">
+              {isRegister ? "Registrar" : "Entrar"}
+            </Button>
+            <button
+              type="button"
+              className="text-sm underline"
+              onClick={() => setIsRegister((v) => !v)}
+            >
+              {isRegister ? "Já tenho conta" : "Criar conta"}
+            </button>
+          </div>
+          <div className="text-xs text-gray-500">
+            Dica: use <Tag>admin@escola</Tag> / <Tag>123456</Tag> para testar
+            rápido.
+          </div>
         </form>
       </Card>
     </div>

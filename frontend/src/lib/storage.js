@@ -1,4 +1,4 @@
-// Coloque aqui as constantes e funções de LocalStorage
+// Constantes e funções de LocalStorage
 export const LS_KEYS = {
   USERS: "cc_users",
   AUTH: "cc_auth",

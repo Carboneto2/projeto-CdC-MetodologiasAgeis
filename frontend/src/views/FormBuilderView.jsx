@@ -9,7 +9,7 @@ import Button from "../components/Button";
 import Input from "../components/Input";
 import Textarea from "../components/Textarea";
 import Tag from "../components/Tag";
-import PerguntaEditor from "../components/PerguntaEditor"; // <-- IMPORTADO!
+import PerguntaEditor from "../components/PerguntaEditor";
 
 export default function FormBuilderView() {
   const {
@@ -138,13 +138,22 @@ export default function FormBuilderView() {
               <Button className="bg-white border" onClick={() => addPergunta("texto")}>
                 + Texto curto
               </Button>
-              <Button className="bg-white border" onClick={() => addPergunta("texto_longo")}>
+              <Button
+                className="bg-white border"
+                onClick={() => addPergunta("texto_longo")}
+              >
                 + Texto longo
               </Button>
-              <Button className="bg-white border" onClick={() => addPergunta("multipla")}>
+              <Button
+                className="bg-white border"
+                onClick={() => addPergunta("multipla")}
+              >
                 + Múltipla escolha
               </Button>
-              <Button className="bg-white border" onClick={() => addPergunta("escala")}>
+              <Button
+                className="bg-white border"
+                onClick={() => addPergunta("escala")}
+              >
                 + Escala (1-5)
               </Button>
             </div>
@@ -244,7 +253,10 @@ export default function FormBuilderView() {
         </div>
       </Card>
 
-      <Card title="Respostas registradas" subtitle={`${respostas.length} resposta(s)`}>
+      <Card
+        title="Respostas registradas"
+        subtitle={`${respostas.length} resposta(s)`}
+      >
         <div className="space-y-3">
           {respostas.length === 0 && (
             <div className="text-sm text-gray-500">
@@ -291,7 +303,9 @@ export default function FormBuilderView() {
                       const p = form?.perguntas.find((pp) => pp.id === qid);
                       return (
                         <div key={qid} className="text-sm">
-                          <div className="font-medium">{p?.enunciado || qid}</div>
+                          <div className="font-medium">
+                            {p?.enunciado || qid}
+                          </div>
                           <div className="text-gray-700">{String(valor)}</div>
                         </div>
                       );
@@ -392,7 +406,10 @@ export default function FormBuilderView() {
                   {p.tipo === "multipla" && (
                     <div className="grid grid-cols-2 gap-2">
                       {(p.opcoes || []).map((op) => (
-                        <label key={op} className="flex items-center gap-2 text-sm">
+                        <label
+                          key={op}
+                          className="flex items-center gap-2 text-sm"
+                        >
                           <input
                             type="radio"
                             name={p.id}
@@ -410,7 +427,10 @@ export default function FormBuilderView() {
                         { length: (p.max ?? 5) - (p.min ?? 1) + 1 },
                         (_, i) => (p.min ?? 1) + i
                       ).map((v) => (
-                        <label key={v} className="flex items-center gap-1 text-sm">
+                        <label
+                          key={v}
+                          className="flex items-center gap-1 text-sm"
+                        >
                           <input
                             type="radio"
                             name={p.id}

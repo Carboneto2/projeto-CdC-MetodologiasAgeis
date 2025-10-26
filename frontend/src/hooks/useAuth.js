@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-// Importamos nossas funções de ajuda!
 import { readLS, writeLS, LS_KEYS } from "../lib/storage";
 
 export function useAuth() {
@@ -9,7 +8,12 @@ export function useAuth() {
     // garante usuário demo
     const users = readLS(LS_KEYS.USERS, []);
     if (!users.find((u) => u.email === "admin@escola")) {
-      users.push({ id: crypto.randomUUID(), email: "admin@escola", nome: "Admin", senha: "123456" });
+      users.push({
+        id: crypto.randomUUID(),
+        email: "admin@escola",
+        nome: "Admin",
+        senha: "123456",
+      });
       writeLS(LS_KEYS.USERS, users);
     }
   }, []);
@@ -24,20 +28,18 @@ export function useAuth() {
     }
     return { ok: false, message: "Credenciais inválidas" };
   };
-  
   const logout = () => {
     localStorage.removeItem(LS_KEYS.AUTH);
     setUser(null);
   };
-  
   const register = (nome, email, senha) => {
     const users = readLS(LS_KEYS.USERS, []);
-    if (users.find((u) => u.email === email)) return { ok: false, message: "E-mail já cadastrado" };
+    if (users.find((u) => u.email === email))
+      return { ok: false, message: "E-mail já cadastrado" };
     const novo = { id: crypto.randomUUID(), nome, email, senha };
     users.push(novo);
     writeLS(LS_KEYS.USERS, users);
     return { ok: true };
   };
-  
   return { user, login, logout, register };
 }

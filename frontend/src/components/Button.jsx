@@ -1,6 +1,5 @@
 import React from "react";
 
-// Note o "export default" para podermos importar em outros lugares
 export default function Button({ className = "", ...props }) {
   return (
     <button

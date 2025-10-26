@@ -1,5 +1,5 @@
 import React from "react";
-import Button from "./Button"; // Importamos o botão
+import Button from "./Button";
 
 export default function Navbar({ active, setActive, onLogout }) {
   const tabs = [
@@ -7,7 +7,6 @@ export default function Navbar({ active, setActive, onLogout }) {
     { id: "alunos", label: "Alunos" },
     { id: "formularios", label: "Conselho de Classe" },
   ];
-
   return (
     <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
