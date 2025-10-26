@@ -1,0 +1,11 @@
+import React from "react";
+
+// Note o "export default" para podermos importar em outros lugares
+export default function Button({ className = "", ...props }) {
+  return (
+    <button
+      className={`px-4 py-2 rounded-2xl shadow transition hover:shadow-md disabled:opacity-50 ${className}`}
+      {...props}
+    />
+  );
+}
