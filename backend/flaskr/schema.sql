@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS MultiplaEscolha{
 };
 
 CREATE TABLE IF NOT EXISTS Alternativa{
+    idalternativa INTEGER PRIMARY KEY AUTOINCREMENT,
     FOREIGN KEY(idmultiplaescolha) REFERENCES MultiplaEscolha(idmultiplaescolha) PRIMARY KEY,
     alternativa varchar(64) NOT NULL
 };
@@ -48,4 +49,6 @@ CREATE TABLE IF NOT EXISTS Escala{
     idescala INTEGER PRIMARY KEY AUTOINCREMENT,
     FOREIGN KEY(idformulario) REFERENCES Formulario(idformulario),
     enunciado varchar(256) NOT NULL,
+    escalamin INTEGER NOT NULL,
+    escalamax INTEGER NOT NULL
 };
