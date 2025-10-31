@@ -1,7 +1,45 @@
-# Arquivos de sistema
+# Arquivos de Sistema e OS
 .DS_Store
 Thumbs.db
 
-# Cache de editores
-.vscode/
+# Cache de Editores
 .idea/
+.vscode/
+*.sw?
+
+# 
+# --- Backend (Python/Flask) ---
+#
+# Ambientes Virtuais
+.venv/
+venv/
+
+# Cache do Python
+__pycache__/
+*.pyc
+
+# Banco de dados SQLite
+*.db
+*.sqlite3
+
+# Arquivos de ambiente
+.env
+.flaskenv
+
+# 
+# --- Frontend (Node/React/Vite) ---
+#
+# Dependências
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Arquivos de Build
+dist/
+dist-ssr/
+
+# Arquivos de ambiente local
+*.local
