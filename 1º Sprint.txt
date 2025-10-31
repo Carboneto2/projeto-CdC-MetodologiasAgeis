@@ -1,0 +1,61 @@
+=========================================================
+DOCUMENTAÇÃO DA 1ª SPRINT - LOCALIZAÇÃO DAS TAREFAS
+=========================================================
+
+Aqui está um detalhamento de todas as tarefas concluídas na primeira sprint e onde encontrar cada funcionalidade correspondente no código do projeto.
+
+---
+
+### PBI-06: Plataforma Web
+
+**Tarefa 1.1: Configurar o ambiente de desenvolvimento (backend e frontend).**
+* **Localização:**
+    * **Backend:** O servidor Flask básico está configurado em `backend/app.py`.
+    * **Frontend:** A estrutura do projeto React + Vite está definida em `frontend/package.json` e `frontend/vite.config.js`. A configuração do Tailwind CSS está em `frontend/tailwind.config.js` e `frontend/postcss.config.cjs`.
+
+**Tarefa 1.2: Criar a estrutura inicial do projeto da aplicação web.**
+* **Localização:** A estrutura principal do frontend está em `frontend/src/`.
+    * `frontend/src/App.jsx`: Controla se o usuário vê a tela de Login ou o Dashboard.
+    * `frontend/src/main.jsx`: É o ponto de entrada que renderiza o App.
+    * Pastas `components/`, `hooks/`, `lib/` e `views/`: Organizam todo o código refatorado.
+
+**Tarefa 1.3: Desenvolver o layout principal e o sistema de navegação.**
+* **Localização:**
+    * **Layout Principal:** `frontend/src/views/Dashboard.jsx`. Este arquivo serve como o contêiner principal para a aplicação após o login.
+    * **Sistema de Navegação:** `frontend/src/components/Navbar.jsx`. Este componente contém as abas "Turmas", "Alunos" e "Conselho de Classe" que controlam qual view é exibida no Dashboard.
+
+---
+
+### PBI-03: Registro de Alunos
+
+**Tarefa 2.1: Modelar o banco de dados para Alunos, Turmas e Cursos.**
+* **Localização:** O modelo (schema) do banco de dados está no arquivo `backend/flaskr/schema.sql`.
+* **Detalhes:** Contém os comandos `CREATE TABLE` que definem as estruturas de `Turma`, `Aluno`, `Formulario` e as tabelas de perguntas.
+
+**Tarefa 2.2: Desenvolver a tela e a lógica para cadastro/edição de turmas.**
+* **Localização:**
+    * **Tela (Interface):** `frontend/src/views/TurmasView.jsx`. Contém o formulário "Cadastrar turma" e a lista "Turmas cadastradas".
+    * **Lógica (CRUD):** `frontend/src/hooks/useTurmas.js`. Contém as funções `add`, `update` e `remove` que (atualmente) manipulam o `localStorage`.
+
+**Tarefa 2.3: Desenvolver a tela e a lógica para cadastro/edição de alunos.**
+* **Localização:**
+    * **Tela (Interface):** `frontend/src/views/AlunosView.jsx`. Contém o formulário "Cadastrar aluno" e a lista "Alunos".
+    * **Lógica (CRUD):** `frontend/src/hooks/useAlunos.js`.
+
+**Tarefa 2.4: Criar a funcionalidade para associar alunos a turmas.**
+* **Localização:** `frontend/src/views/AlunosView.jsx`.
+* **Detalhes:** Dentro do formulário "Cadastrar aluno", o campo `<select>` (dropdown) "Turma" permite ao usuário selecionar uma turma existente. A função `handleAdd` então salva o `turmaId` junto com os dados do novo aluno, criando a associação.
+
+---
+
+### PBI-01: Gestão de Formulários
+
+**Tarefa 3.2: Desenvolver a interface para visualização do formulário (somente leitura).**
+* **Localização:** `frontend/src/views/FormBuilderView.jsx`.
+* **Detalhes:** A interface é o modal de "Preencher" (controlado pelo estado `fillOpen`). Ao clicar em "Preencher" em um formulário salvo, esse modal é exibido e renderiza as perguntas do formulário para o usuário, funcionando como a "visualização".
+
+**Tarefa 3.3: Implementar a funcionalidade de preenchimento e salvamento das respostas do formulário por aluno.**
+* **Localização:**
+    * **Interface de Preenchimento:** O modal de "Preencher" em `frontend/src/views/FormBuilderView.jsx`, que inclui a seleção de Turma e Aluno.
+    * **Lógica de Salvamento:** A função `addResposta` no arquivo `frontend/src/hooks/useForms.js`. Ela é chamada pela função `submitPreenchimento` quando o usuário clica em "Enviar" no modal, salvando os dados.
+```
