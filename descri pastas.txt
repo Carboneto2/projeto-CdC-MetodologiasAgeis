@@ -2,32 +2,35 @@
 DESCRIÇÃO DA ESTRUTURA DE PASTAS
 ======================================
 
-📁 projeto-CdC-MetodologiasAgeis-main/
+projeto-CdC-MetodologiasAgeis-main/
+├── backend/                    # Código do servidor (API Flask)
+│   ├── flaskr/                 # Scripts auxiliares do backend
+│   │   └── schema.sql          # Estrutura do banco de dados (Task 3.1)
+│   ├── dados/                  # JSONs de exemplo para popular o banco (Task 3.1)
+│   │   ├── alunos.json
+│   │   ├── turmas.json
+│   │   └── formulario_conselho.json
+│   ├── app.py                  # Servidor principal da API Flask (Task 3.2)
+│   └── init_db.py              # Script para criar e popular o banco (Task 3.1)
+├── frontend/                   # Código da interface (React + Vite)
+│   ├── dist/                   # PASTA DE "BUILD" (VERSÃO COMPILADA)
+│   │   ├── assets/             # Arquivos JS e CSS finais que o navegador lê
+│   │   └── index.html          # O HTML final que o servidor envia
+│   ├── node_modules/           # (Dependências do Node.js - Ignorado)
+│   ├── public/                 # Arquivos estáticos (ícones, etc.)
+│   ├── src/                    # Código-fonte principal do React
+│   │   ├── components/         # Componentes de UI (Button, Card, Input)
+│   │   ├── hooks/              # Hooks (useAuth, useTurmas)
+│   │   ├── lib/                # Funções de ajuda (ex: storage.js)
+│   │   ├── views/              # Telas (LoginView, FormBuilderView...)
+│   │   ├── App.jsx             # Componente raiz
+│   │   ├── index.css           # CSS global com Tailwind
+│   │   └── main.jsx            # Ponto de entrada do React
+│   ├── index.html              # O "template" HTML (usado pelo 'npm run build')
+│   ├── package.json            # Define as dependências e scripts (ex: "npm run build")
+│   ├── vite.config.js          # Configuração do Vite
+│   └── (outros .config.js)     # Arquivos de configuração (Tailwind, PostCSS)
 │
-├── 📁 backend/                     # Código do servidor (API Flask)
-│   ├── 📁 flaskr/                  # Scripts auxiliares do backend
-│   │   └── 📄 schema.sql           # Estrutura do banco de dados
-│   ├── 📄 app.py                   # Servidor principal da API Flask
-│   └── (outros arquivos python...)
-│
-├── 📁 frontend/                     # Código da interface (React + Vite)
-│   ├── 📁 node_modules/              # (Dependências do Node.js - Ignorado pelo Git)
-│   ├── 📁 public/                    # Arquivos estáticos (ícones, etc.)
-│   ├── 📁 src/                       # Código-fonte principal do React
-│   │   ├── 📁 components/             # Componentes de UI reutilizáveis (Button, Card, Input)
-│   │   ├── 📁 hooks/                  # Hooks customizados para lógica de dados (useAuth, useTurmas)
-│   │   ├── 📁 lib/                    # Funções de ajuda (ex: storage.js)
-│   │   ├── 📁 views/                  # Telas principais da aplicação (LoginView, Dashboard)
-│   │   ├── 📄 App.jsx                 # Componente raiz que controla a exibição de Login/Dashboard
-│   │   ├── 📄 index.css               # Arquivo CSS global com as diretivas do Tailwind
-│   │   └── 📄 main.jsx                # Ponto de entrada do React (renderiza o App.jsx)
-│   ├── 📄 .gitignore              # Arquivo de ignore específico do frontend (agora no .gitignore raiz)
-│   ├── 📄 index.html              # Template HTML principal onde o React é injetado
-│   ├── 📄 package.json            # Define as dependências e scripts do frontend
-│   ├── 📄 postcss.config.cjs      # Configuração do PostCSS (para Tailwind)
-│   ├── 📄 tailwind.config.js      # Configuração do Tailwind CSS
-│   └── 📄 vite.config.js          # Configuração do Vite
-│
-├── 📄 .gitignore                   # Arquivo PRINCIPAL para ignorar arquivos (ex: node_modules, venv)
+└── .gitignore                  # Arquivo de ignore GLOBAL (ignora .db, node_modules, etc)
 ├── 📄 README.md                    # Documentação do projeto (como instalar, rodar, etc.)
 └── 📄 descri pastas.txt            # Este arquivo de descrição

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useForms } from "../hooks/useForms";
 import { useTurmas } from "../hooks/useTurmas";
 import { useAlunos } from "../hooks/useAlunos";
@@ -12,6 +12,54 @@ import Tag from "../components/Tag";
 import PerguntaEditor from "../components/PerguntaEditor";
 
 export default function FormBuilderView() {
+  useEffect(() => {
+    const SYNC_KEY = "db_synced_v1";
+
+    const syncData = async () => {
+      try {
+        const [turmasRes, alunosRes, formsRes] = await Promise.all([
+          fetch("/api/turmas"),
+          fetch("/api/alunos"),
+          fetch("/api/forms"),
+        ]);
+
+        if (!turmasRes.ok || !alunosRes.ok || !formsRes.ok) {
+          throw new Error("Falha ao buscar dados da API");
+        }
+
+        const turmasData = await turmasRes.json();
+        const alunosData = await alunosRes.json();
+        const formsData = await formsRes.json();
+
+        const turmasFinal = turmasData.map(t => ({ ...t, id: t.idturma }));
+        const alunosFinal = alunosData.map(a => ({ ...a, id: a.idaluno }));
+        const formsFinal = formsData.map(f => ({ ...f, id: f.idformulario }));
+        
+        writeLS(LS_KEYS.TURMAS, turmasFinal);
+        writeLS(LS_KEYS.ALUNOS, alunosFinal);
+        writeLS(LS_KEYS.FORMS, formsFinal);
+        
+        if (!localStorage.getItem(SYNC_KEY)) {
+           writeLS(LS_KEYS.RESPOSTAS, []);
+        }
+
+        if (!localStorage.getItem(SYNC_KEY)) {
+            localStorage.setItem(SYNC_KEY, "true");
+            window.location.reload();
+        }
+
+      } catch (error) {
+        console.error("Erro ao sincronizar com o banco de dados:", error);
+        alert("Erro ao conectar com o backend. Usando dados locais.");
+      }
+    };
+
+    if (!localStorage.getItem(SYNC_KEY)) {
+        syncData();
+    }
+
+  }, []);
+
   const {
     forms,
     addForm,
