@@ -43,3 +43,7 @@ dist-ssr/
 
 # Arquivos de ambiente local
 *.local
+
+
+# Ignorar arquivos de banco de dados SQLite
+backend/banco.db

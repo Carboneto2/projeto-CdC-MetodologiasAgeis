@@ -1,0 +1,31 @@
+{
+  "formulario": {
+    "titulo": "Formulário de Avaliação - Conselho de Classe 1º Bim",
+    "descricao": "Preencha este formulário para avaliar o desempenho geral da turma."
+  },
+  "perguntas": [
+    {
+      "tipo": "TextoCurto",
+      "enunciado": "Qual o nome do professor(a) avaliador?"
+    },
+    {
+      "tipo": "MultiplaEscolha",
+      "enunciado": "A turma é participativa nas aulas?",
+      "alternativas": [
+        "Sim, a maioria participa.",
+        "Razoavelmente, apenas alguns participam.",
+        "Não, a maioria não participa."
+      ]
+    },
+    {
+      "tipo": "Escala",
+      "enunciado": "Qual o nível de comprometimento da turma (1 a 5)?",
+      "escalamin": 1,
+      "escalamax": 5
+    },
+    {
+      "tipo": "TextoLongo",
+      "enunciado": "Deixe aqui suas observações gerais, pontos positivos e negativos."
+    }
+  ]
+}
