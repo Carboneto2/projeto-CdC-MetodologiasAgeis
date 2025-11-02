@@ -3,9 +3,7 @@ import sqlite3
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 DB_PATH = os.path.join(BASE_DIR, 'banco.db')
-
 
 
 app = Flask(
@@ -58,19 +56,19 @@ def get_forms():
 
             perguntas_tc = conn.execute("SELECT * FROM TextoCurto WHERE idformulario = ?", (id_formulario,)).fetchall()
             for p in perguntas_tc:
-                perguntas_final.append({"id": p['idtextocurto'], "tipo": "texto", **dict(p)})
+                perguntas_final.append({"id": f"texto-{p['idtextocurto']}", "tipo": "texto", **dict(p)})
 
             perguntas_tl = conn.execute("SELECT * FROM TextoLongo WHERE idformulario = ?", (id_formulario,)).fetchall()
             for p in perguntas_tl:
-                perguntas_final.append({"id": p['idtextolongo'], "tipo": "texto_longo", **dict(p)})
+                perguntas_final.append({"id": f"texto_longo-{p['idtextolongo']}", "tipo": "texto_longo", **dict(p)})
 
             perguntas_escala = conn.execute("SELECT * FROM Escala WHERE idformulario = ?", (id_formulario,)).fetchall()
             for p in perguntas_escala:
-                perguntas_final.append({"id": p['idescala'], "tipo": "escala", **dict(p)})
+                perguntas_final.append({"id": f"escala-{p['idescala']}", "tipo": "escala", **dict(p)})
 
             perguntas_me = conn.execute("SELECT * FROM MultiplaEscolha WHERE idformulario = ?", (id_formulario,)).fetchall()
             for p_me in perguntas_me:
-                pergunta_me_dict = {"id": p_me['idmultiplaescolha'], "tipo": "multipla", **dict(p_me), "opcoes": []}
+                pergunta_me_dict = {"id": f"multipla-{p_me['idmultiplaescolha']}", "tipo": "multipla", **dict(p_me), "opcoes": []}
                 
                 id_pergunta_me = p_me['idmultiplaescolha']
                 alternativas = conn.execute("SELECT * FROM Alternativa WHERE idmultiplaescolha = ?", (id_pergunta_me,)).fetchall()
@@ -97,7 +95,6 @@ def home():
 
 @app.route("/about")
 def about():
-  
     return render_template("index.html") 
 
 if __name__ == "__main__":
