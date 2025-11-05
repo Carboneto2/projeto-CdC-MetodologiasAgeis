@@ -2,48 +2,50 @@
 .DS_Store
 Thumbs.db
 
-# Cache de Editores
-.idea/
+# Cache de Editores e Arquivos de IDE
 .vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 *.sw?
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # 
 # --- Backend (Python/Flask) ---
 #
-# Ambientes Virtuais
-.venv/
-venv/
+# Ambientes Virtuais (Nunca envie a pasta "venv")
+backend/.venv/
+backend/venv/
 
 # Cache do Python
-__pycache__/
+backend/__pycache__/
 *.pyc
+*.pyo
 
-# Banco de dados SQLite
+# Banco de dados (NUNCA "commite" o banco de dados)
+backend/banco.db
 *.db
 *.sqlite3
-
-# Arquivos de ambiente
-.env
-.flaskenv
 
 # 
 # --- Frontend (Node/React/Vite) ---
 #
-# Dependências
-node_modules/
+# Dependências (Pasta mais pesada do projeto)
+frontend/node_modules/
 
-# Logs
-logs
-*.log
-npm-debug.log*
-
-# Arquivos de Build
-dist/
-dist-ssr/
+# Arquivos de Build (Produção)
+frontend/dist/
+frontend/dist-ssr/
 
 # Arquivos de ambiente local
-*.local
-
-
-# Ignorar arquivos de banco de dados SQLite
-backend/banco.db
+frontend/*.local
