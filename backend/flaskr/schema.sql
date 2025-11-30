@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS Aluno (
 CREATE TABLE IF NOT EXISTS Formulario (
     idformulario INTEGER PRIMARY KEY AUTOINCREMENT,
     titulo varchar(100) NOT NULL,
-    descricao varchar(512) NOT NULL
+    descricao varchar(512) NOT NULL,
+    perguntas TEXT -- Vamos salvar todas as perguntas como um JSON aqui
 );
 
 /* --- Tabelas de Perguntas --- */
@@ -72,9 +73,12 @@ CREATE TABLE IF NOT EXISTS Escala (
 CREATE TABLE IF NOT EXISTS Resposta (
     idresposta INTEGER PRIMARY KEY AUTOINCREMENT,
     idformulario INTEGER NOT NULL,
+    idturma INTEGER NOT NULL,
     idaluno INTEGER NOT NULL,
+    payload TEXT, -- As respostas também serão salvas como JSON
     data_resposta DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(idformulario) REFERENCES Formulario(idformulario),
+    FOREIGN KEY(idturma) REFERENCES Turma(idturma),
     FOREIGN KEY(idaluno) REFERENCES Aluno(idaluno)
 );
 

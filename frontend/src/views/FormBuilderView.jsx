@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useForms } from "../hooks/useForms";
 import { useTurmas } from "../hooks/useTurmas";
 import { useAlunos } from "../hooks/useAlunos";
-import { LS_KEYS, writeLS } from "../lib/storage";
+import { LS_KEYS, writeLS } from "../lib/storage"; // Mantido caso use para backup
 
 import Card from "../components/Card";
 import Button from "../components/Button";
@@ -12,54 +12,6 @@ import Tag from "../components/Tag";
 import PerguntaEditor from "../components/PerguntaEditor";
 
 export default function FormBuilderView() {
-  useEffect(() => {
-    const SYNC_KEY = "db_synced_v1";
-
-    const syncData = async () => {
-      try {
-        const [turmasRes, alunosRes, formsRes] = await Promise.all([
-          fetch("/api/turmas"),
-          fetch("/api/alunos"),
-          fetch("/api/forms"),
-        ]);
-
-        if (!turmasRes.ok || !alunosRes.ok || !formsRes.ok) {
-          throw new Error("Falha ao buscar dados da API");
-        }
-
-        const turmasData = await turmasRes.json();
-        const alunosData = await alunosRes.json();
-        const formsData = await formsRes.json();
-
-        const turmasFinal = turmasData.map(t => ({ ...t, id: t.idturma }));
-        const alunosFinal = alunosData.map(a => ({ ...a, id: a.idaluno }));
-        const formsFinal = formsData.map(f => ({ ...f, id: f.idformulario }));
-        
-        writeLS(LS_KEYS.TURMAS, turmasFinal);
-        writeLS(LS_KEYS.ALUNOS, alunosFinal);
-        writeLS(LS_KEYS.FORMS, formsFinal);
-        
-        if (!localStorage.getItem(SYNC_KEY)) {
-           writeLS(LS_KEYS.RESPOSTAS, []);
-        }
-
-        if (!localStorage.getItem(SYNC_KEY)) {
-            localStorage.setItem(SYNC_KEY, "true");
-            window.location.reload();
-        }
-
-      } catch (error) {
-        console.error("Erro ao sincronizar com o banco de dados:", error);
-        alert("Erro ao conectar com o backend. Usando dados locais.");
-      }
-    };
-
-    if (!localStorage.getItem(SYNC_KEY)) {
-        syncData();
-    }
-
-  }, []);
-
   const {
     forms,
     addForm,
@@ -69,6 +21,7 @@ export default function FormBuilderView() {
     removeResposta,
     addResposta,
   } = useForms();
+  
   const { turmas } = useTurmas();
   const { alunos } = useAlunos();
 
@@ -104,6 +57,7 @@ export default function FormBuilderView() {
   };
 
   const exportar = () => {
+    // Exportação simples para JSON
     const payload = { turmas, alunos, forms, respostas };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
@@ -121,41 +75,39 @@ export default function FormBuilderView() {
     reader.onload = () => {
       try {
         const json = JSON.parse(reader.result);
-        if (json.turmas && json.alunos && json.forms && json.respostas) {
-          writeLS(LS_KEYS.TURMAS, json.turmas);
-          writeLS(LS_KEYS.ALUNOS, json.alunos);
-          writeLS(LS_KEYS.FORMS, json.forms);
-          writeLS(LS_KEYS.RESPOSTAS, json.respostas);
-          alert("Importação concluída. Recarregue a página.");
-        } else {
-          alert("Arquivo inválido");
+        if (json) {
+           alert("Importação via arquivo JSON não está conectada ao Banco de Dados nesta versão.");
         }
       } catch (e) {
-        alert("Erro ao importar");
+        alert("Erro ao ler arquivo");
       }
     };
     reader.readAsText(file);
   };
 
-  // Preenchimento/Preview
+  // --- Preenchimento / Preview ---
   const [fillOpen, setFillOpen] = useState(false);
   const [fillFormId, setFillFormId] = useState("");
   const [fillTurmaId, setFillTurmaId] = useState("");
   const [fillAlunoId, setFillAlunoId] = useState("");
   const [fill, setFill] = useState({});
 
+  // CORREÇÃO 1: Usar String() para garantir que comparamos texto com texto
   const selectedForm = useMemo(
-    () => forms.find((f) => f.id === fillFormId),
+    () => forms.find((f) => String(f.id) === String(fillFormId)),
     [forms, fillFormId]
   );
+  
+  // CORREÇÃO 2: Filtrar alunos convertendo turmaId para String
   const alunosDaTurma = useMemo(
-    () => alunos.filter((a) => a.turmaId === fillTurmaId),
+    () => alunos.filter((a) => String(a.turmaId) === String(fillTurmaId)),
     [alunos, fillTurmaId]
   );
 
   const submitPreenchimento = () => {
     if (!selectedForm || !fillTurmaId || !fillAlunoId)
       return alert("Selecione formulário, turma e aluno");
+      
     addResposta(selectedForm.id, fillTurmaId, fillAlunoId, fill);
     setFillOpen(false);
     setFill({});
@@ -233,17 +185,7 @@ export default function FormBuilderView() {
               <Button className="bg-white border" onClick={exportar}>
                 Exportar backup
               </Button>
-              <label className="bg-white border px-4 py-2 rounded-2xl shadow cursor-pointer">
-                Importar JSON
-                <input
-                  type="file"
-                  accept="application/json"
-                  className="hidden"
-                  onChange={(e) =>
-                    e.target.files?.[0] && importar(e.target.files[0])
-                  }
-                />
-              </label>
+              {/* Importação desabilitada visualmente para evitar confusão com DB */}
             </div>
           </div>
 
@@ -252,7 +194,7 @@ export default function FormBuilderView() {
             <div className="space-y-2">
               {forms.length === 0 && (
                 <div className="text-sm text-gray-500">
-                  Nenhum formulário salvo.
+                  Nenhum formulário salvo no banco.
                 </div>
               )}
               {forms.map((f) => (
@@ -261,7 +203,7 @@ export default function FormBuilderView() {
                     <div>
                       <div className="font-medium">{f.titulo}</div>
                       <div className="text-xs text-gray-500">
-                        {f.perguntas.length} pergunta(s)
+                        {f.perguntas ? f.perguntas.length : 0} pergunta(s)
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -270,7 +212,7 @@ export default function FormBuilderView() {
                         onClick={() => {
                           setTitulo(f.titulo);
                           setDescricao(f.descricao || "");
-                          setPerguntas(f.perguntas);
+                          setPerguntas(f.perguntas || []);
                         }}
                       >
                         Editar
@@ -312,15 +254,17 @@ export default function FormBuilderView() {
             </div>
           )}
           {respostas.map((r) => {
-            const form = forms.find((f) => f.id === r.formId);
-            const turma = turmas.find((t) => t.id === r.turmaId);
-            const aluno = alunos.find((a) => a.id === r.alunoId);
+            // CORREÇÃO 3: Usar String() nas buscas também
+            const form = forms.find((f) => String(f.id) === String(r.formId));
+            const turma = turmas.find((t) => String(t.id) === String(r.turmaId));
+            const aluno = alunos.find((a) => String(a.id) === String(r.alunoId));
+            
             return (
               <div key={r.id} className="border rounded-xl p-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
                     <strong>{form?.titulo || "Formulário"}</strong> •{" "}
-                    {turma?.nome || "Turma"} • {aluno?.nome || "Aluno"}
+                    {turma?.nome || "Turma removida"} • {aluno?.nome || "Aluno removido"}
                     <span className="ml-2 text-xs">
                       <Tag>{new Date(r.data).toLocaleString()}</Tag>
                     </span>
@@ -347,12 +291,12 @@ export default function FormBuilderView() {
                     Ver respostas
                   </summary>
                   <div className="mt-2 grid gap-2">
-                    {Object.entries(r.payload).map(([qid, valor]) => {
-                      const p = form?.perguntas.find((pp) => pp.id === qid);
+                    {r.payload && Object.entries(r.payload).map(([qid, valor]) => {
+                      const p = form?.perguntas?.find((pp) => pp.id === qid);
                       return (
                         <div key={qid} className="text-sm">
                           <div className="font-medium">
-                            {p?.enunciado || qid}
+                            {p?.enunciado || "Pergunta"}
                           </div>
                           <div className="text-gray-700">{String(valor)}</div>
                         </div>
@@ -363,7 +307,7 @@ export default function FormBuilderView() {
                 <div className="mt-2">
                   <Button
                     className="bg-red-600 text-white"
-                    onClick={() => removeResposta(r.id)}
+                    onClick={() => removeResposta(r.id)} // Nota: precisa implementar no hook/API se quiser usar
                   >
                     Excluir
                   </Button>

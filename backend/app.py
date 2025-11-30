@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import json
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -19,7 +20,7 @@ DATABASE = 'conselho.db'
 # --- BANCO DE DADOS ---
 def get_db():
     conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row # Permite acessar as colunas pelo nome (ex: row['nomealuno'])
+    conn.row_factory = sqlite3.Row # Permite acessar as colunas pelo nome
     return conn
 
 def init_db():
@@ -34,22 +35,22 @@ def allowed_file(filename):
     """Verifica se a extensão da imagem é válida"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# --- ROTAS DA API ---
+# ==========================================
+#              ROTAS DA API
+# ==========================================
 
-# 1. Rotas de TURMAS (Task 1.4)
+# --- 1. Rotas de TURMAS ---
 @app.route('/api/turmas', methods=['GET'])
 def get_turmas():
     conn = get_db()
-    # Pega os dados usando os SEUS nomes de variáveis do banco
     turmas_db = conn.execute('SELECT * FROM Turma').fetchall()
     conn.close()
     
-    # Converte para o formato que o Frontend espera (JSON)
     lista_turmas = []
     for t in turmas_db:
         lista_turmas.append({
-            "id": t["idturma"],      # Banco: idturma -> Front: id
-            "nome": t["nometurma"],  # Banco: nometurma -> Front: nome
+            "id": t["idturma"],
+            "nome": t["nometurma"],
             "ano": t["ano"],
             "turno": t["turno"]
         })
@@ -59,14 +60,13 @@ def get_turmas():
 def add_turma():
     data = request.json
     conn = get_db()
-    # Salva no banco usando os nomes corretos da tabela Turma
     conn.execute('INSERT INTO Turma (nometurma, ano, turno) VALUES (?, ?, ?)',
                  (data['nome'], data['ano'], data['turno']))
     conn.commit()
     conn.close()
     return jsonify({"message": "Turma criada com sucesso"}), 201
 
-# 2. Rotas de ALUNOS (Tasks 3.4 e 3.5)
+# --- 2. Rotas de ALUNOS (com Foto) ---
 @app.route('/api/alunos', methods=['GET'])
 def get_alunos():
     conn = get_db()
@@ -75,64 +75,56 @@ def get_alunos():
     
     lista_alunos = []
     for a in alunos_db:
-        # Cria a URL da foto para o frontend conseguir carregar
         foto_url = None
         if a['foto']:
             foto_url = f"http://127.0.0.1:5000/uploads/{a['foto']}"
 
         lista_alunos.append({
-            "id": a["idaluno"],       # Banco: idaluno
-            "nome": a["nomealuno"],   # Banco: nomealuno
+            "id": a["idaluno"],
+            "nome": a["nomealuno"],
             "matricula": a["matricula"],
-            "turmaId": a["idturma"],  # Banco: idturma
-            "foto": a["foto"],        # Banco: foto
-            "foto_url": foto_url      # Extra: Link completo da imagem
+            "turmaId": a["idturma"],
+            "foto": a["foto"],
+            "foto_url": foto_url
         })
     return jsonify(lista_alunos)
 
 @app.route('/api/alunos', methods=['POST'])
 def add_aluno():
-    # Recebe os dados do formulário (incluindo arquivo)
     nome = request.form.get('nome')
     matricula = request.form.get('matricula')
     turma_id = request.form.get('turmaId')
     
     foto_filename = None
     
-    # Lógica de Upload da Imagem (Task 3.5)
+    # Upload da Imagem
     if 'foto' in request.files:
         file = request.files['foto']
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            # Gera um nome único para não misturar fotos com mesmo nome
             import uuid
             unique_name = f"{uuid.uuid4().hex}_{filename}"
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_name))
             foto_filename = unique_name
 
     conn = get_db()
-    # Insere respeitando SUAS variáveis: nomealuno, idturma, foto
     conn.execute('INSERT INTO Aluno (nomealuno, matricula, idturma, foto) VALUES (?, ?, ?, ?)',
                  (nome, matricula, turma_id, foto_filename))
     conn.commit()
     conn.close()
     return jsonify({"message": "Aluno criado com sucesso"}), 201
 
-# Rota para o navegador conseguir baixar/mostrar a imagem
 @app.route('/uploads/<name>')
 def download_file(name):
     return send_from_directory(app.config['UPLOAD_FOLDER'], name)
 
-# 3. Rota de DADOS CONSOLIDADOS (Task 2.1)
+# --- 3. Dashboard (Resumo) ---
 @app.route('/api/dashboard/resumo', methods=['GET'])
 def get_resumo():
     conn = get_db()
-    # Conta quantos registros tem em cada tabela
     total_turmas = conn.execute('SELECT COUNT(*) as c FROM Turma').fetchone()['c']
     total_alunos = conn.execute('SELECT COUNT(*) as c FROM Aluno').fetchone()['c']
     
-    # Agrupa alunos por turno (ex: Manhã: 10, Tarde: 5)
-    # Faz o JOIN entre Aluno e Turma usando idturma
     por_turno = conn.execute('''
         SELECT t.turno, COUNT(a.idaluno) as count 
         FROM Turma t 
@@ -148,8 +140,93 @@ def get_resumo():
         "alunos_por_turno": [dict(row) for row in por_turno]
     })
 
+# --- 4. Rotas de FORMULÁRIOS (Conselho de Classe) ---
+@app.route('/api/forms', methods=['GET'])
+def get_forms():
+    conn = get_db()
+    forms_db = conn.execute('SELECT * FROM Formulario').fetchall()
+    conn.close()
+    
+    lista = []
+    for f in forms_db:
+        # Convertemos o texto JSON de volta para Objeto/Lista Python
+        perguntas_list = []
+        if f["perguntas"]:
+            try:
+                perguntas_list = json.loads(f["perguntas"])
+            except:
+                perguntas_list = []
+
+        lista.append({
+            "id": f["idformulario"],
+            "titulo": f["titulo"],
+            "descricao": f["descricao"],
+            "perguntas": perguntas_list
+        })
+    return jsonify(lista)
+
+@app.route('/api/forms', methods=['POST'])
+def add_form():
+    data = request.json
+    conn = get_db()
+    # Salvamos a lista de perguntas como TEXTO JSON no banco
+    perguntas_json = json.dumps(data['perguntas'])
+    
+    conn.execute('INSERT INTO Formulario (titulo, descricao, perguntas) VALUES (?, ?, ?)',
+                 (data['titulo'], data['descricao'], perguntas_json))
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Formulário salvo"}), 201
+
+@app.route('/api/forms/<int:id>', methods=['DELETE'])
+def delete_form(id):
+    conn = get_db()
+    conn.execute('DELETE FROM Formulario WHERE idformulario = ?', (id,))
+    # Opcional: Apagar respostas órfãs também
+    conn.execute('DELETE FROM Resposta WHERE idformulario = ?', (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Formulário excluído"}), 200
+
+# --- 5. Rotas de RESPOSTAS ---
+@app.route('/api/respostas', methods=['GET'])
+def get_respostas():
+    conn = get_db()
+    respostas_db = conn.execute('SELECT * FROM Resposta').fetchall()
+    conn.close()
+    
+    lista = []
+    for r in respostas_db:
+        payload_obj = {}
+        if r["payload"]:
+            try:
+                payload_obj = json.loads(r["payload"])
+            except:
+                payload_obj = {}
+
+        lista.append({
+            "id": r["idresposta"],
+            "formId": r["idformulario"],
+            "turmaId": r["idturma"],
+            "alunoId": r["idaluno"],
+            "payload": payload_obj,
+            "data": r["data_resposta"]
+        })
+    return jsonify(lista)
+
+@app.route('/api/respostas', methods=['POST'])
+def add_resposta():
+    data = request.json
+    conn = get_db()
+    payload_json = json.dumps(data['payload'])
+    
+    conn.execute('INSERT INTO Resposta (idformulario, idturma, idaluno, payload) VALUES (?, ?, ?, ?)',
+                 (data['formId'], data['turmaId'], data['alunoId'], payload_json))
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Resposta salva"}), 201
+
 if __name__ == '__main__':
-    # Cria o banco na primeira vez que rodar
     if not os.path.exists(DATABASE):
         init_db()
     app.run(debug=True, port=5000)
