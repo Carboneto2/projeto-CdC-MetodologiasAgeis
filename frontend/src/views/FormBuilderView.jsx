@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useForms } from "../hooks/useForms";
 import { useTurmas } from "../hooks/useTurmas";
 import { useAlunos } from "../hooks/useAlunos";
-import { LS_KEYS, writeLS } from "../lib/storage"; // Mantido caso use para backup
+import { modeloConselhoPadrao } from "../data/modeloConselhoPadrao";
 
 import Card from "../components/Card";
 import Button from "../components/Button";
@@ -15,7 +15,6 @@ export default function FormBuilderView() {
   const {
     forms,
     addForm,
-    updateForm,
     removeForm,
     respostas,
     removeResposta,
@@ -25,11 +24,29 @@ export default function FormBuilderView() {
   const { turmas } = useTurmas();
   const { alunos } = useAlunos();
 
-  const [titulo, setTitulo] = useState("Conselho de Classe — Formulário padrão");
+  const [titulo, setTitulo] = useState("Conselho de Classe");
   const [descricao, setDescricao] = useState(
     "Use este formulário para registrar percepções, notas e encaminhamentos."
   );
   const [perguntas, setPerguntas] = useState([]);
+
+  // --- Função para Carregar Modelo Padrão ---
+  const carregarModeloPadrao = () => {
+    if (perguntas.length > 0) {
+      if (!confirm("Isso vai substituir as perguntas atuais pelo modelo padrão oficial. Continuar?")) return;
+    }
+
+    setTitulo(modeloConselhoPadrao.titulo);
+    setDescricao(modeloConselhoPadrao.descricao);
+    
+    const perguntasProcessadas = modeloConselhoPadrao.perguntas.map(p => ({
+        ...p,
+        id: crypto.randomUUID(),
+        opcoes: p.opcoes || [] 
+    }));
+
+    setPerguntas(perguntasProcessadas);
+  };
 
   const addPergunta = (tipo) => {
     setPerguntas((x) => [
@@ -53,11 +70,11 @@ export default function FormBuilderView() {
       return alert("Defina título e ao menos 1 pergunta.");
     addForm({ titulo: titulo.trim(), descricao: descricao.trim(), perguntas });
     setPerguntas([]);
+    setTitulo("Conselho de Classe");
     alert("Formulário salvo!");
   };
 
   const exportar = () => {
-    // Exportação simples para JSON
     const payload = { turmas, alunos, forms, respostas };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
@@ -70,48 +87,34 @@ export default function FormBuilderView() {
     URL.revokeObjectURL(url);
   };
 
-  const importar = (file) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const json = JSON.parse(reader.result);
-        if (json) {
-           alert("Importação via arquivo JSON não está conectada ao Banco de Dados nesta versão.");
-        }
-      } catch (e) {
-        alert("Erro ao ler arquivo");
-      }
-    };
-    reader.readAsText(file);
-  };
-
   // --- Preenchimento / Preview ---
   const [fillOpen, setFillOpen] = useState(false);
   const [fillFormId, setFillFormId] = useState("");
   const [fillTurmaId, setFillTurmaId] = useState("");
-  const [fillAlunoId, setFillAlunoId] = useState("");
+  // REMOVIDO: const [fillAlunoId, setFillAlunoId] = useState(""); (Não precisamos mais selecionar aluno no topo)
   const [fill, setFill] = useState({});
 
-  // CORREÇÃO 1: Usar String() para garantir que comparamos texto com texto
   const selectedForm = useMemo(
     () => forms.find((f) => String(f.id) === String(fillFormId)),
     [forms, fillFormId]
   );
   
-  // CORREÇÃO 2: Filtrar alunos convertendo turmaId para String
+  // Usado para preencher as opções dinâmicas das perguntas
   const alunosDaTurma = useMemo(
     () => alunos.filter((a) => String(a.turmaId) === String(fillTurmaId)),
     [alunos, fillTurmaId]
   );
 
   const submitPreenchimento = () => {
-    if (!selectedForm || !fillTurmaId || !fillAlunoId)
-      return alert("Selecione formulário, turma e aluno");
+    // ALTERADO: Não exige mais fillAlunoId
+    if (!selectedForm || !fillTurmaId)
+      return alert("Selecione a turma para continuar.");
       
-    addResposta(selectedForm.id, fillTurmaId, fillAlunoId, fill);
+    // Envia null como alunoId, pois é um relatório da turma
+    addResposta(selectedForm.id, fillTurmaId, null, fill);
     setFillOpen(false);
     setFill({});
-    alert("Resposta registrada!");
+    alert("Avaliação da turma registrada!");
   };
 
   return (
@@ -134,29 +137,31 @@ export default function FormBuilderView() {
                 onChange={(e) => setDescricao(e.target.value)}
               />
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button className="bg-white border" onClick={() => addPergunta("texto")}>
-                + Texto curto
-              </Button>
-              <Button
-                className="bg-white border"
-                onClick={() => addPergunta("texto_longo")}
+
+            <div className="flex flex-wrap gap-2 items-center border-b pb-3 mb-3">
+              <button 
+                onClick={carregarModeloPadrao}
+                className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-medium border border-blue-200 hover:bg-blue-100 transition-colors"
               >
-                + Texto longo
+                ✨ Carregar Modelo Oficial
+              </button>
+              
+              <div className="w-px h-6 bg-gray-300 mx-1"></div>
+
+              <Button className="bg-white border text-xs" onClick={() => addPergunta("texto")}>
+                + Texto
               </Button>
-              <Button
-                className="bg-white border"
-                onClick={() => addPergunta("multipla")}
-              >
-                + Múltipla escolha
+              <Button className="bg-white border text-xs" onClick={() => addPergunta("texto_longo")}>
+                + Longo
               </Button>
-              <Button
-                className="bg-white border"
-                onClick={() => addPergunta("escala")}
-              >
-                + Escala (1-5)
+              <Button className="bg-white border text-xs" onClick={() => addPergunta("multipla")}>
+                + Múltipla
+              </Button>
+              <Button className="bg-white border text-xs" onClick={() => addPergunta("escala")}>
+                + Escala
               </Button>
             </div>
+
             <div className="space-y-3">
               {perguntas.map((p) => (
                 <PerguntaEditor
@@ -173,28 +178,29 @@ export default function FormBuilderView() {
                 />
               ))}
               {perguntas.length === 0 && (
-                <div className="text-sm text-gray-500">
-                  Nenhuma pergunta adicionada ainda.
+                <div className="text-sm text-gray-500 py-4 text-center border-2 border-dashed rounded-xl">
+                  Nenhuma pergunta adicionada.<br/>
+                  <span className="text-xs">Adicione manualmente ou use o Modelo Padrão acima.</span>
                 </div>
               )}
             </div>
-            <div className="flex gap-2">
-              <Button className="bg-black text-white" onClick={salvarFormulario}>
+            
+            <div className="flex gap-2 pt-2">
+              <Button className="bg-black text-white w-full md:w-auto" onClick={salvarFormulario}>
                 Salvar formulário
               </Button>
               <Button className="bg-white border" onClick={exportar}>
-                Exportar backup
+                Backup
               </Button>
-              {/* Importação desabilitada visualmente para evitar confusão com DB */}
             </div>
           </div>
 
           <div className="space-y-3">
-            <h4 className="font-medium">Formulários salvos</h4>
-            <div className="space-y-2">
+            <h4 className="font-medium">Formulários salvos (Banco de Dados)</h4>
+            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
               {forms.length === 0 && (
                 <div className="text-sm text-gray-500">
-                  Nenhum formulário salvo no banco.
+                  Nenhum formulário salvo.
                 </div>
               )}
               {forms.map((f) => (
@@ -207,33 +213,23 @@ export default function FormBuilderView() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button
-                        className="bg-white border"
-                        onClick={() => {
+                      <Button className="bg-white border text-xs px-2" onClick={() => {
                           setTitulo(f.titulo);
                           setDescricao(f.descricao || "");
                           setPerguntas(f.perguntas || []);
-                        }}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        className="bg-red-600 text-white"
-                        onClick={() => removeForm(f.id)}
-                      >
-                        Excluir
-                      </Button>
+                        }}>Editar</Button>
+                      <Button className="bg-red-600 text-white text-xs px-2" onClick={() => removeForm(f.id)}>Excluir</Button>
                     </div>
                   </div>
                   <div className="mt-2">
                     <Button
-                      className="bg-black text-white"
+                      className="bg-black text-white w-full text-sm"
                       onClick={() => {
                         setFillFormId(f.id);
                         setFillOpen(true);
                       }}
                     >
-                      Preencher
+                      Preencher / Avaliar Turma
                     </Button>
                   </div>
                 </div>
@@ -243,73 +239,58 @@ export default function FormBuilderView() {
         </div>
       </Card>
 
-      <Card
-        title="Respostas registradas"
-        subtitle={`${respostas.length} resposta(s)`}
-      >
+      <Card title="Respostas registradas" subtitle={`${respostas.length} resposta(s)`}>
         <div className="space-y-3">
-          {respostas.length === 0 && (
-            <div className="text-sm text-gray-500">
-              Ainda não há respostas.
-            </div>
-          )}
+          {respostas.length === 0 && <div className="text-sm text-gray-500">Ainda não há respostas.</div>}
           {respostas.map((r) => {
-            // CORREÇÃO 3: Usar String() nas buscas também
             const form = forms.find((f) => String(f.id) === String(r.formId));
             const turma = turmas.find((t) => String(t.id) === String(r.turmaId));
-            const aluno = alunos.find((a) => String(a.id) === String(r.alunoId));
+            
+            // Lógica para exibir nome do aluno OU "Relatório Geral"
+            let etiquetaAluno = "Relatório Geral da Turma";
+            if (r.alunoId) {
+                const aluno = alunos.find((a) => String(a.id) === String(r.alunoId));
+                etiquetaAluno = aluno ? `Aluno: ${aluno.nome}` : "Aluno removido";
+            }
             
             return (
               <div key={r.id} className="border rounded-xl p-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
-                    <strong>{form?.titulo || "Formulário"}</strong> •{" "}
-                    {turma?.nome || "Turma removida"} • {aluno?.nome || "Aluno removido"}
+                    <strong>{form?.titulo || "Formulário"}</strong> • {turma?.nome || "Turma removida"} • <span className="font-medium text-black">{etiquetaAluno}</span>
                     <span className="ml-2 text-xs">
                       <Tag>{new Date(r.data).toLocaleString()}</Tag>
                     </span>
                   </div>
                   <Button
-                    className="bg-white border"
+                    className="bg-white border text-xs"
                     onClick={() => {
-                      const blob = new Blob([JSON.stringify(r, null, 2)], {
-                        type: "application/json",
-                      });
+                      const blob = new Blob([JSON.stringify(r, null, 2)], { type: "application/json" });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `resposta_${r.id}.json`;
-                      a.click();
-                      URL.revokeObjectURL(url);
+                      a.href = url; a.download = `resposta_${r.id}.json`; a.click(); URL.revokeObjectURL(url);
                     }}
                   >
-                    Baixar JSON
+                    JSON
                   </Button>
                 </div>
                 <details className="mt-2">
-                  <summary className="cursor-pointer text-sm">
-                    Ver respostas
-                  </summary>
-                  <div className="mt-2 grid gap-2">
+                  <summary className="cursor-pointer text-sm font-medium text-blue-600">Ver respostas</summary>
+                  <div className="mt-2 grid gap-2 bg-gray-50 p-3 rounded-lg">
                     {r.payload && Object.entries(r.payload).map(([qid, valor]) => {
                       const p = form?.perguntas?.find((pp) => pp.id === qid);
                       return (
-                        <div key={qid} className="text-sm">
-                          <div className="font-medium">
-                            {p?.enunciado || "Pergunta"}
-                          </div>
-                          <div className="text-gray-700">{String(valor)}</div>
+                        <div key={qid} className="text-sm border-b last:border-0 pb-1 mb-1">
+                          <div className="font-medium text-gray-700">{p?.enunciado || "Pergunta"}</div>
+                          <div className="text-black">{String(valor)}</div>
                         </div>
                       );
                     })}
                   </div>
                 </details>
-                <div className="mt-2">
-                  <Button
-                    className="bg-red-600 text-white"
-                    onClick={() => removeResposta(r.id)} // Nota: precisa implementar no hook/API se quiser usar
-                  >
-                    Excluir
+                <div className="mt-2 text-right">
+                  <Button className="bg-white text-red-600 border border-red-200 text-xs" onClick={() => removeResposta(r.id)}>
+                    Excluir Resposta
                   </Button>
                 </div>
               </div>
@@ -320,138 +301,90 @@ export default function FormBuilderView() {
 
       {/* MODAL DE PREENCHIMENTO */}
       {fillOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-2xl">
-            <div className="flex items-start justify-between">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-lg font-semibold">
-                  Preencher: {selectedForm?.titulo}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {selectedForm?.descricao}
-                </p>
+                <h3 className="text-xl font-bold">Avaliação da Turma: {selectedForm?.titulo}</h3>
+                <p className="text-sm text-gray-500">{selectedForm?.descricao}</p>
               </div>
-              <button className="text-sm" onClick={() => setFillOpen(false)}>
-                Fechar
-              </button>
+              <button className="text-gray-500 hover:text-black" onClick={() => setFillOpen(false)}>✕</button>
             </div>
-            <div className="grid md:grid-cols-2 gap-3 mt-3">
-              <div>
-                <label className="text-sm">Turma</label>
-                <select
-                  className="w-full rounded-xl border px-3 py-2"
-                  value={fillTurmaId}
-                  onChange={(e) => {
-                    setFillTurmaId(e.target.value);
-                    setFillAlunoId("");
-                  }}
-                >
-                  <option value="">Selecione</option>
-                  {turmas.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm">Aluno</label>
-                <select
-                  className="w-full rounded-xl border px-3 py-2"
-                  value={fillAlunoId}
-                  onChange={(e) => setFillAlunoId(e.target.value)}
-                >
-                  <option value="">Selecione</option>
-                  {alunosDaTurma.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            
+            {/* APENAS SELEÇÃO DE TURMA AGORA */}
+            <div className="mb-4 p-4 bg-gray-50 rounded-xl border">
+              <label className="text-sm font-medium">Selecione a Turma a ser avaliada</label>
+              <select
+                className="w-full mt-1 rounded-xl border px-3 py-2 bg-white"
+                value={fillTurmaId}
+                onChange={(e) => {
+                  setFillTurmaId(e.target.value);
+                  // Não limpamos fillAlunoId pq ele não existe mais
+                }}
+              >
+                <option value="">-- Selecione --</option>
+                {turmas.map((t) => (
+                  <option key={t.id} value={t.id}>{t.nome}</option>
+                ))}
+              </select>
             </div>
-            <div className="mt-4 space-y-4 max-h-[50vh] overflow-auto pr-1">
-              {(selectedForm?.perguntas || []).map((p) => (
-                <div key={p.id} className="border rounded-xl p-3">
-                  <div className="text-sm font-medium mb-2">
-                    {p.enunciado || (
-                      <em className="text-gray-400">(sem enunciado)</em>
-                    )}
+
+            <div className="flex-1 overflow-y-auto pr-2 space-y-6">
+              {(selectedForm?.perguntas || []).map((p, index) => (
+                <div key={p.id} className="border-b pb-4 last:border-0">
+                  <div className="text-base font-medium mb-2 flex gap-2">
+                    <span className="text-gray-400">{index + 1}.</span>
+                    {p.enunciado || <em className="text-gray-400">(sem enunciado)</em>}
                   </div>
+                  
                   {p.tipo === "texto" && (
-                    <Input
-                      value={fill[p.id] || ""}
-                      onChange={(e) =>
-                        setFill({ ...fill, [p.id]: e.target.value })
-                      }
-                    />
+                    <Input value={fill[p.id] || ""} onChange={(e) => setFill({ ...fill, [p.id]: e.target.value })} placeholder="Sua resposta..." />
                   )}
                   {p.tipo === "texto_longo" && (
-                    <Textarea
-                      rows={4}
-                      value={fill[p.id] || ""}
-                      onChange={(e) =>
-                        setFill({ ...fill, [p.id]: e.target.value })
-                      }
-                    />
+                    <Textarea rows={3} value={fill[p.id] || ""} onChange={(e) => setFill({ ...fill, [p.id]: e.target.value })} placeholder="Descreva detalhadamente..." />
                   )}
                   {p.tipo === "multipla" && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {(p.opcoes || []).map((op) => (
-                        <label
-                          key={op}
-                          className="flex items-center gap-2 text-sm"
-                        >
-                          <input
-                            type="radio"
-                            name={p.id}
-                            checked={fill[p.id] === op}
-                            onChange={() => setFill({ ...fill, [p.id]: op })}
-                          />{" "}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(() => {
+                        // LÓGICA DINÂMICA (MANTIDA):
+                        const isDynamic = !p.opcoes || p.opcoes.length === 0;
+                        const optionsList = isDynamic ? alunosDaTurma.map(a => a.nome) : p.opcoes;
+                        
+                        if (isDynamic && optionsList.length === 0) {
+                            return <div className="text-red-500 text-sm italic col-span-2 bg-red-50 p-2 rounded">
+                                {fillTurmaId ? "Nenhum aluno nesta turma." : "⚠️ Selecione uma turma acima para carregar a lista de alunos."}
+                            </div>;
+                        }
+
+                        return optionsList.map((op) => (
+                        <label key={op} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${fill[p.id] === op ? "bg-black text-white border-black" : "hover:bg-gray-50"}`}>
+                          <input type="radio" name={p.id} className="hidden" checked={fill[p.id] === op} onChange={() => setFill({ ...fill, [p.id]: op })} />
+                          <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${fill[p.id] === op ? "border-white" : "border-gray-400"}`}>
+                            {fill[p.id] === op && <div className="w-2 h-2 rounded-full bg-white" />}
+                          </div>
                           {op}
                         </label>
-                      ))}
+                      ))})()}
                     </div>
                   )}
                   {p.tipo === "escala" && (
                     <div className="flex items-center gap-2 flex-wrap">
-                      {Array.from(
-                        { length: (p.max ?? 5) - (p.min ?? 1) + 1 },
-                        (_, i) => (p.min ?? 1) + i
-                      ).map((v) => (
-                        <label
-                          key={v}
-                          className="flex items-center gap-1 text-sm"
-                        >
-                          <input
-                            type="radio"
-                            name={p.id}
-                            checked={fill[p.id] === v}
-                            onChange={() => setFill({ ...fill, [p.id]: v })}
-                          />{" "}
-                          {v}
+                      {Array.from({ length: (p.max ?? 5) - (p.min ?? 1) + 1 }, (_, i) => (p.min ?? 1) + i).map((v) => (
+                        <label key={v} className={`flex flex-col items-center justify-center w-10 h-10 rounded-full border cursor-pointer transition-all ${fill[p.id] === v ? "bg-black text-white border-black scale-110" : "hover:bg-gray-100"}`}>
+                          <input type="radio" name={p.id} className="hidden" checked={fill[p.id] === v} onChange={() => setFill({ ...fill, [p.id]: v })} />
+                          <span className="font-bold">{v}</span>
                         </label>
                       ))}
+                      <div className="w-full flex justify-between text-xs text-gray-400 px-1 mt-1"><span>Pior</span><span>Melhor</span></div>
                     </div>
                   )}
                 </div>
               ))}
             </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button
-                className="bg-white border"
-                onClick={() => {
-                  window.print();
-                }}
-              >
-                Imprimir
-              </Button>
-              <Button
-                className="bg-black text-white"
-                onClick={submitPreenchimento}
-              >
-                Enviar
-              </Button>
+
+            <div className="mt-4 pt-4 border-t flex justify-end gap-3 bg-white">
+              <Button className="bg-white border text-gray-700" onClick={() => window.print()}>🖨️ Imprimir</Button>
+              <Button className="bg-black text-white px-6 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all" onClick={submitPreenchimento}>✅ Enviar Avaliação</Button>
             </div>
           </div>
         </div>

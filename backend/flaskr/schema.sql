@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS Resposta (
     idresposta INTEGER PRIMARY KEY AUTOINCREMENT,
     idformulario INTEGER NOT NULL,
     idturma INTEGER NOT NULL,
-    idaluno INTEGER NOT NULL,
+    idaluno INTEGER,
     payload TEXT, -- As respostas também serão salvas como JSON
     data_resposta DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(idformulario) REFERENCES Formulario(idformulario),
