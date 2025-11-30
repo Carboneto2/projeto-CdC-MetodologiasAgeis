@@ -1,0 +1,44 @@
+=========================================================
+DOCUMENTAÇÃO DA 2ª SPRINT - LOCALIZAÇÃO DAS TAREFAS
+=========================================================
+
+Aqui está um detalhamento de todas as tarefas concluídas na segunda sprint, focadas na integração com banco de dados, upload de arquivos e consolidação de dados.
+
+---
+
+### PBI-06: Plataforma Web (Integração)
+
+**Tarefa 1.4: Integrar o Frontend (React) com o Backend (Flask) substituindo localStorage por SQLite.**
+* **Localização:**
+    * **Backend:** O arquivo `backend/app.py` agora possui rotas reais (`/api/turmas`, `/api/alunos`, `/api/forms`) que leem e escrevem no arquivo `backend/conselho.db`.
+    * **Frontend:** Os hooks `useTurmas.js`, `useAlunos.js` e `useForms.js` foram reescritos para usar `fetch()` em vez de `localStorage`.
+* **Detalhes:** O sistema agora tem persistência de dados real. Se reiniciar o navegador, os dados permanecem salvos no banco SQLite.
+
+---
+
+### PBI-03: Registro de Alunos (Fotos)
+
+**Tarefa 3.4: Atualizar tabela de Alunos no Banco de Dados para suportar armazenamento de fotos.**
+* **Localização:** `backend/flaskr/schema.sql`.
+* **Detalhes:** Foi adicionada a coluna `foto varchar(255)` na tabela `Aluno` para salvar o nome do arquivo da imagem.
+
+**Tarefa 3.5: Adicionar campo de upload de foto na tela de cadastro e exibir a imagem no perfil do aluno.**
+* **Localização:**
+    * **Backend:** Configuração da pasta `backend/uploads` e rota de upload em `backend/app.py`.
+    * **Frontend:** O arquivo `frontend/src/views/AlunosView.jsx` agora possui um `<input type="file">` e exibe a imagem do aluno na lista. O hook `useAlunos.js` foi atualizado para enviar dados via `FormData`.
+
+---
+
+### PBI-02: Visualização e Comparação
+
+**Tarefa 2.1: Criar endpoints na API (Backend) para fornecer dados consolidados das turmas.**
+* **Localização:** `backend/app.py`.
+* **Detalhes:** Foi criada a rota `/api/dashboard/resumo` que retorna a contagem total de turmas, alunos e a distribuição de alunos por turno, preparando o terreno para os gráficos.
+
+---
+
+### PBI-01: Gestão de Formulários (Refatoração)
+
+**Migração do Conselho de Classe para Banco de Dados.**
+* **Localização:** `backend/app.py` e `frontend/src/views/FormBuilderView.jsx`.
+* **Detalhes:** As tabelas de Formulário foram simplificadas no `schema.sql` para armazenar perguntas e respostas como JSON. O frontend foi ajustado para corrigir conflitos de tipos de ID (número vs texto) e salvar/recuperar formulários do banco de dados oficial.

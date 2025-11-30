@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Banco de Dados
+*.db
+*.sqlite3
+
+# Uploads de mídia (Ignora as fotos, mas mantêm a pasta)
+backend/uploads/*
+!backend/uploads/.gitkeep

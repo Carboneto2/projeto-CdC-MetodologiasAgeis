@@ -5,13 +5,11 @@ DESCRIÇÃO DA ESTRUTURA DE PASTAS
 projeto-CdC-MetodologiasAgeis-main/
 │
 ├── 📁 backend/                    # Código do servidor (API Flask)
-│   ├── 📁 flaskr/                 # Scripts auxiliares do backend
-│   │   └── 📄 schema.sql          # Estrutura (schema) do banco de dados
-│   ├── 📁 dados/                  # JSONs de exemplo para popular o banco
-│   │   ├── 📄 alunos.json
-│   │   ├── 📄 turmas.json
-│   │   └── 📄 formulario_conselho.json
-│   ├── 📄 app.py                  # Servidor principal da API Flask
+│   ├── 📁 flaskr/                 # Scripts e Schema do banco
+│   │   └── 📄 schema.sql          # Estrutura atualizada com coluna 'foto' e tabelas JSON
+│   ├── 📁 uploads/                # [NOVO] Pasta onde as fotos dos alunos são salvas
+│   ├── 📄 app.py                  # Servidor API com rotas de upload e dashboard
+│   └── 📄 conselho.db             # (Arquivo do banco de dados - Ignorado pelo Git)
 │   └── 📄 init_db.py             # Script para criar e popular o banco de dados
 │
 ├── 📁 frontend/                   # Código da interface (React + Vite)
