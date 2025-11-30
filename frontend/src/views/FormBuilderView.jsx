@@ -30,7 +30,10 @@ export default function FormBuilderView() {
   );
   const [perguntas, setPerguntas] = useState([]);
 
-  // --- Função para Carregar Modelo Padrão ---
+  // Estado para o Zoom da Foto (NOVO)
+  const [fotoExpandida, setFotoExpandida] = useState(null);
+
+  // --- Carregar Modelo Padrão ---
   const carregarModeloPadrao = () => {
     if (perguntas.length > 0) {
       if (!confirm("Isso vai substituir as perguntas atuais pelo modelo padrão oficial. Continuar?")) return;
@@ -56,8 +59,8 @@ export default function FormBuilderView() {
         tipo,
         enunciado: "",
         opcoes:
-          tipo === "multipla"
-            ? ["Ótimo", "Bom", "Regular", "Insuficiente"]
+          (tipo === "multipla" || tipo === "radio")
+            ? ["Opção 1", "Opção 2"]
             : undefined,
         min: tipo === "escala" ? 1 : undefined,
         max: tipo === "escala" ? 5 : undefined,
@@ -91,7 +94,6 @@ export default function FormBuilderView() {
   const [fillOpen, setFillOpen] = useState(false);
   const [fillFormId, setFillFormId] = useState("");
   const [fillTurmaId, setFillTurmaId] = useState("");
-  // REMOVIDO: const [fillAlunoId, setFillAlunoId] = useState(""); (Não precisamos mais selecionar aluno no topo)
   const [fill, setFill] = useState({});
 
   const selectedForm = useMemo(
@@ -99,18 +101,27 @@ export default function FormBuilderView() {
     [forms, fillFormId]
   );
   
-  // Usado para preencher as opções dinâmicas das perguntas
   const alunosDaTurma = useMemo(
     () => alunos.filter((a) => String(a.turmaId) === String(fillTurmaId)),
     [alunos, fillTurmaId]
   );
 
+  // Checkbox (Múltipla)
+  const toggleOption = (perguntaId, opcao) => {
+    const selecionados = fill[perguntaId] || [];
+    let novos;
+    if (selecionados.includes(opcao)) {
+      novos = selecionados.filter(item => item !== opcao);
+    } else {
+      novos = [...selecionados, opcao];
+    }
+    setFill({ ...fill, [perguntaId]: novos });
+  };
+
   const submitPreenchimento = () => {
-    // ALTERADO: Não exige mais fillAlunoId
     if (!selectedForm || !fillTurmaId)
       return alert("Selecione a turma para continuar.");
       
-    // Envia null como alunoId, pois é um relatório da turma
     addResposta(selectedForm.id, fillTurmaId, null, fill);
     setFillOpen(false);
     setFill({});
@@ -148,18 +159,11 @@ export default function FormBuilderView() {
               
               <div className="w-px h-6 bg-gray-300 mx-1"></div>
 
-              <Button className="bg-white border text-xs" onClick={() => addPergunta("texto")}>
-                + Texto
-              </Button>
-              <Button className="bg-white border text-xs" onClick={() => addPergunta("texto_longo")}>
-                + Longo
-              </Button>
-              <Button className="bg-white border text-xs" onClick={() => addPergunta("multipla")}>
-                + Múltipla
-              </Button>
-              <Button className="bg-white border text-xs" onClick={() => addPergunta("escala")}>
-                + Escala
-              </Button>
+              <Button className="bg-white border text-xs" onClick={() => addPergunta("texto")}>+ Texto</Button>
+              <Button className="bg-white border text-xs" onClick={() => addPergunta("texto_longo")}>+ Longo</Button>
+              <Button className="bg-white border text-xs" onClick={() => addPergunta("multipla")}>+ Múltipla</Button>
+              <Button className="bg-white border text-xs" onClick={() => addPergunta("radio")}>+ Única (Sim/Não)</Button>
+              <Button className="bg-white border text-xs" onClick={() => addPergunta("escala")}>+ Escala</Button>
             </div>
 
             <div className="space-y-3">
@@ -186,12 +190,8 @@ export default function FormBuilderView() {
             </div>
             
             <div className="flex gap-2 pt-2">
-              <Button className="bg-black text-white w-full md:w-auto" onClick={salvarFormulario}>
-                Salvar formulário
-              </Button>
-              <Button className="bg-white border" onClick={exportar}>
-                Backup
-              </Button>
+              <Button className="bg-black text-white w-full md:w-auto" onClick={salvarFormulario}>Salvar formulário</Button>
+              <Button className="bg-white border" onClick={exportar}>Backup</Button>
             </div>
           </div>
 
@@ -199,24 +199,18 @@ export default function FormBuilderView() {
             <h4 className="font-medium">Formulários salvos (Banco de Dados)</h4>
             <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
               {forms.length === 0 && (
-                <div className="text-sm text-gray-500">
-                  Nenhum formulário salvo.
-                </div>
+                <div className="text-sm text-gray-500">Nenhum formulário salvo.</div>
               )}
               {forms.map((f) => (
                 <div key={f.id} className="border rounded-xl p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-medium">{f.titulo}</div>
-                      <div className="text-xs text-gray-500">
-                        {f.perguntas ? f.perguntas.length : 0} pergunta(s)
-                      </div>
+                      <div className="text-xs text-gray-500">{f.perguntas ? f.perguntas.length : 0} pergunta(s)</div>
                     </div>
                     <div className="flex gap-2">
                       <Button className="bg-white border text-xs px-2" onClick={() => {
-                          setTitulo(f.titulo);
-                          setDescricao(f.descricao || "");
-                          setPerguntas(f.perguntas || []);
+                          setTitulo(f.titulo); setDescricao(f.descricao || ""); setPerguntas(f.perguntas || []);
                         }}>Editar</Button>
                       <Button className="bg-red-600 text-white text-xs px-2" onClick={() => removeForm(f.id)}>Excluir</Button>
                     </div>
@@ -246,52 +240,37 @@ export default function FormBuilderView() {
             const form = forms.find((f) => String(f.id) === String(r.formId));
             const turma = turmas.find((t) => String(t.id) === String(r.turmaId));
             
-            // Lógica para exibir nome do aluno OU "Relatório Geral"
-            let etiquetaAluno = "Relatório Geral da Turma";
-            if (r.alunoId) {
-                const aluno = alunos.find((a) => String(a.id) === String(r.alunoId));
-                etiquetaAluno = aluno ? `Aluno: ${aluno.nome}` : "Aluno removido";
-            }
-            
             return (
               <div key={r.id} className="border rounded-xl p-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
-                    <strong>{form?.titulo || "Formulário"}</strong> • {turma?.nome || "Turma removida"} • <span className="font-medium text-black">{etiquetaAluno}</span>
-                    <span className="ml-2 text-xs">
-                      <Tag>{new Date(r.data).toLocaleString()}</Tag>
-                    </span>
+                    <strong>{form?.titulo || "Formulário"}</strong> • {turma?.nome || "Turma removida"}
+                    <span className="ml-2 text-xs"><Tag>{new Date(r.data).toLocaleString()}</Tag></span>
                   </div>
-                  <Button
-                    className="bg-white border text-xs"
-                    onClick={() => {
+                  <Button className="bg-white border text-xs" onClick={() => {
                       const blob = new Blob([JSON.stringify(r, null, 2)], { type: "application/json" });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
                       a.href = url; a.download = `resposta_${r.id}.json`; a.click(); URL.revokeObjectURL(url);
-                    }}
-                  >
-                    JSON
-                  </Button>
+                    }}>JSON</Button>
                 </div>
                 <details className="mt-2">
                   <summary className="cursor-pointer text-sm font-medium text-blue-600">Ver respostas</summary>
                   <div className="mt-2 grid gap-2 bg-gray-50 p-3 rounded-lg">
                     {r.payload && Object.entries(r.payload).map(([qid, valor]) => {
                       const p = form?.perguntas?.find((pp) => pp.id === qid);
+                      const valorExibicao = Array.isArray(valor) ? valor.join(", ") : String(valor);
                       return (
                         <div key={qid} className="text-sm border-b last:border-0 pb-1 mb-1">
                           <div className="font-medium text-gray-700">{p?.enunciado || "Pergunta"}</div>
-                          <div className="text-black">{String(valor)}</div>
+                          <div className="text-black">{valorExibicao}</div>
                         </div>
                       );
                     })}
                   </div>
                 </details>
                 <div className="mt-2 text-right">
-                  <Button className="bg-white text-red-600 border border-red-200 text-xs" onClick={() => removeResposta(r.id)}>
-                    Excluir Resposta
-                  </Button>
+                  <Button className="bg-white text-red-600 border border-red-200 text-xs" onClick={() => removeResposta(r.id)}>Excluir Resposta</Button>
                 </div>
               </div>
             );
@@ -305,22 +284,18 @@ export default function FormBuilderView() {
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-xl font-bold">Avaliação da Turma: {selectedForm?.titulo}</h3>
+                <h3 className="text-xl font-bold">Avaliação: {selectedForm?.titulo}</h3>
                 <p className="text-sm text-gray-500">{selectedForm?.descricao}</p>
               </div>
               <button className="text-gray-500 hover:text-black" onClick={() => setFillOpen(false)}>✕</button>
             </div>
             
-            {/* APENAS SELEÇÃO DE TURMA AGORA */}
             <div className="mb-4 p-4 bg-gray-50 rounded-xl border">
-              <label className="text-sm font-medium">Selecione a Turma a ser avaliada</label>
+              <label className="text-sm font-medium">Selecione a Turma</label>
               <select
                 className="w-full mt-1 rounded-xl border px-3 py-2 bg-white"
                 value={fillTurmaId}
-                onChange={(e) => {
-                  setFillTurmaId(e.target.value);
-                  // Não limpamos fillAlunoId pq ele não existe mais
-                }}
+                onChange={(e) => setFillTurmaId(e.target.value)}
               >
                 <option value="">-- Selecione --</option>
                 {turmas.map((t) => (
@@ -343,30 +318,67 @@ export default function FormBuilderView() {
                   {p.tipo === "texto_longo" && (
                     <Textarea rows={3} value={fill[p.id] || ""} onChange={(e) => setFill({ ...fill, [p.id]: e.target.value })} placeholder="Descreva detalhadamente..." />
                   )}
+                  
+                  {/* TIPO: MÚLTIPLA ESCOLHA (CHECKBOX) - Com Foto e Zoom */}
                   {p.tipo === "multipla" && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {(() => {
-                        // LÓGICA DINÂMICA (MANTIDA):
                         const isDynamic = !p.opcoes || p.opcoes.length === 0;
                         const optionsList = isDynamic ? alunosDaTurma.map(a => a.nome) : p.opcoes;
                         
                         if (isDynamic && optionsList.length === 0) {
                             return <div className="text-red-500 text-sm italic col-span-2 bg-red-50 p-2 rounded">
-                                {fillTurmaId ? "Nenhum aluno nesta turma." : "⚠️ Selecione uma turma acima para carregar a lista de alunos."}
+                                {fillTurmaId ? "Nenhum aluno cadastrado nesta turma." : "⚠️ Selecione uma turma acima."}
                             </div>;
                         }
 
-                        return optionsList.map((op) => (
-                        <label key={op} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${fill[p.id] === op ? "bg-black text-white border-black" : "hover:bg-gray-50"}`}>
-                          <input type="radio" name={p.id} className="hidden" checked={fill[p.id] === op} onChange={() => setFill({ ...fill, [p.id]: op })} />
-                          <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${fill[p.id] === op ? "border-white" : "border-gray-400"}`}>
-                            {fill[p.id] === op && <div className="w-2 h-2 rounded-full bg-white" />}
-                          </div>
-                          {op}
-                        </label>
-                      ))})()}
+                        return optionsList.map((op) => {
+                          const isSelected = (fill[p.id] || []).includes(op);
+                          const alunoEncontrado = isDynamic ? alunosDaTurma.find(a => a.nome === op) : null;
+
+                          return (
+                            <label key={op} className={`flex items-center gap-3 p-2 rounded-lg border transition-all ${isSelected ? "bg-black text-white border-black" : "hover:bg-gray-50"}`}>
+                              <input type="checkbox" className="hidden" checked={isSelected} onChange={() => toggleOption(p.id, op)} />
+                              
+                              <div className={`w-4 h-4 min-w-[1rem] rounded border flex items-center justify-center cursor-pointer ${isSelected ? "border-white bg-white" : "border-gray-400"}`}>
+                                {isSelected && <span className="text-black text-xs font-bold">✓</span>}
+                              </div>
+
+                              {/* FOTO com Zoom (Aqui está a mágica) */}
+                              {alunoEncontrado && (
+                                 alunoEncontrado.foto_url ? 
+                                   <img 
+                                        src={alunoEncontrado.foto_url} 
+                                        alt="" 
+                                        className="w-8 h-8 rounded-full object-cover border border-gray-200 cursor-zoom-in hover:scale-110 transition-transform" 
+                                        onClick={(e) => {
+                                            e.preventDefault(); // Evita marcar o checkbox ao clicar na foto
+                                            setFotoExpandida(alunoEncontrado.foto_url);
+                                        }}
+                                   /> 
+                                   : <div className="w-8 h-8 min-w-[2rem] rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-500">{alunoEncontrado.nome.charAt(0)}</div>
+                              )}
+
+                              <span className="text-sm leading-tight cursor-pointer">{op}</span>
+                            </label>
+                          );
+                        })})()}
                     </div>
                   )}
+
+                  {/* TIPO: RADIO (ÚNICA ESCOLHA) */}
+                  {p.tipo === "radio" && (
+                    <div className="flex gap-4">
+                      {(p.opcoes || ["Sim", "Não"]).map((op) => (
+                        <label key={op} className={`flex items-center gap-2 cursor-pointer px-4 py-2 rounded-full border transition-all ${fill[p.id] === op ? "bg-blue-600 text-white border-blue-600" : "bg-white hover:bg-gray-50"}`}>
+                          <input type="radio" name={p.id} className="hidden" checked={fill[p.id] === op} onChange={() => setFill({ ...fill, [p.id]: op })} />
+                          <div className={`w-4 h-4 rounded-full border ${fill[p.id] === op ? "border-white bg-white" : "border-gray-400"}`}></div>
+                          {op}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
                   {p.tipo === "escala" && (
                     <div className="flex items-center gap-2 flex-wrap">
                       {Array.from({ length: (p.max ?? 5) - (p.min ?? 1) + 1 }, (_, i) => (p.min ?? 1) + i).map((v) => (
@@ -387,6 +399,28 @@ export default function FormBuilderView() {
               <Button className="bg-black text-white px-6 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all" onClick={submitPreenchimento}>✅ Enviar Avaliação</Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* MODAL DE ZOOM DA FOTO (NOVO) */}
+      {fotoExpandida && (
+        <div 
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-zoom-out"
+            onClick={() => setFotoExpandida(null)}
+        >
+            <div className="relative max-w-3xl max-h-full">
+                <img 
+                    src={fotoExpandida} 
+                    alt="Foto do Aluno Expandida" 
+                    className="max-w-full max-h-[90vh] rounded-lg shadow-2xl border-4 border-white"
+                />
+                <button 
+                    className="absolute -top-4 -right-4 bg-white text-black rounded-full w-8 h-8 flex items-center justify-center font-bold shadow-lg hover:bg-gray-200"
+                    onClick={() => setFotoExpandida(null)}
+                >
+                    ✕
+                </button>
+            </div>
         </div>
       )}
     </div>

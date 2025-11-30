@@ -226,6 +226,61 @@ def add_resposta():
     conn.close()
     return jsonify({"message": "Resposta salva"}), 201
 
+
+# --- 4. Relatórios e Alertas (Task 4.1) ---
+@app.route('/api/dashboard/alertas', methods=['GET'])
+def get_alertas():
+    conn = get_db()
+    
+    # 1. Busca todos os alunos para criar um dicionário de referência
+    alunos_db = conn.execute('SELECT * FROM Aluno').fetchall()
+    alunos_map = {a['nomealuno']: dict(a) for a in alunos_db} # Mapa: Nome -> Dados do Aluno
+    
+    # Inicializa contadores
+    contagem = {nome: 0 for nome in alunos_map.keys()}
+    
+    # 2. Busca todas as respostas
+    respostas_db = conn.execute('SELECT payload FROM Resposta').fetchall()
+    conn.close()
+    
+    # 3. Processa o JSON de cada resposta
+    for r in respostas_db:
+        if r['payload']:
+            try:
+                payload = json.loads(r['payload'])
+                # O payload é algo como: { "uuid_pergunta": "João Silva", "uuid_outra": "Maria" }
+                # Ou em multipla escolha pode ser arrays, mas no nosso front atual é string simples por radio/select
+                for resposta_valor in payload.values():
+                    # Se o valor da resposta for o nome de um aluno, conta +1
+                    # (Verifica se é string para evitar erro)
+                    if isinstance(resposta_valor, str) and resposta_valor in contagem:
+                        contagem[resposta_valor] += 1
+            except:
+                continue
+
+    # 4. Monta a lista final ordenada
+    lista_alertas = []
+    for nome, qtd in contagem.items():
+        if qtd > 0: # Só mostra quem teve alguma menção
+            aluno = alunos_map[nome]
+            
+            # Formata URL da foto
+            foto_url = None
+            if aluno['foto']:
+                foto_url = f"http://127.0.0.1:5000/uploads/{aluno['foto']}"
+
+            lista_alertas.append({
+                "id": aluno['idaluno'],
+                "nome": aluno['nomealuno'],
+                "matricula": aluno['matricula'],
+                "foto_url": foto_url,
+                "ocorrencias": qtd
+            })
+    
+    # Ordena do maior para o menor número de ocorrências
+    lista_alertas.sort(key=lambda x: x['ocorrencias'], reverse=True)
+    
+    return jsonify(lista_alertas)
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
         init_db()
