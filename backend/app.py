@@ -27,7 +27,7 @@ def init_db():
     """Cria as tabelas se elas não existirem"""
     with app.app_context():
         db = get_db()
-        with open('flaskr/schema.sql', mode='r') as f:
+        with open('flaskr/schema.sql', mode='r', encoding='utf-8') as f:
             db.cursor().executescript(f.read())
         db.commit()
 

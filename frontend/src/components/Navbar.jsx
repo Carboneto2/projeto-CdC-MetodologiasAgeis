@@ -3,6 +3,7 @@ import Button from "./Button";
 
 export default function Navbar({ active, setActive, onLogout }) {
   const tabs = [
+    { id: "visao_geral", label: "Visão Geral" },
     { id: "turmas", label: "Turmas" },
     { id: "alunos", label: "Alunos" },
     { id: "formularios", label: "Conselho de Classe" },

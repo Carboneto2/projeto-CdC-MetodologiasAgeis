@@ -3,10 +3,10 @@ import Navbar from "../components/Navbar";
 import TurmasView from "./TurmasView";
 import AlunosView from "./AlunosView";
 import FormBuilderView from "./FormBuilderView";
+import ComparacaoView from "./ComparacaoView";
 
 export default function Dashboard({ user, logout }) {
-  const [active, setActive] = useState("turmas");
-
+  const [active, setActive] = useState("visao_geral"); 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar active={active} setActive={setActive} onLogout={logout} />
@@ -19,9 +19,10 @@ export default function Dashboard({ user, logout }) {
             Dados salvos localmente (sem servidor)
           </div>
         </div>
-        {active === "turmas" && <TurmasView />}
-        {active === "alunos" && <AlunosView />}
-        {active === "formularios" && <FormBuilderView />}
+            {active === "visao_geral" && <ComparacaoView />}  {/* <--- ADICIONAR ISSO */}
+            {active === "turmas" && <TurmasView />}
+            {active === "alunos" && <AlunosView />}
+            {active === "formularios" && <FormBuilderView />}
       </main>
       <footer className="max-w-6xl mx-auto px-4 pb-6 text-xs text-gray-500">
         Dica: para produção, conecte com uma API (ex.: Node/Express + banco) e
