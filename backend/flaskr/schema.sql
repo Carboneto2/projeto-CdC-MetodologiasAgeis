@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS Aluno (
     idaluno INTEGER PRIMARY KEY AUTOINCREMENT,
     nomealuno varchar(100) NOT NULL,
     matricula varchar(30)
+    idturma INTEGER,       -- ADICIONADO: Para vincular à tabela Turma
+    foto varchar(255),     -- ADICIONADO: Para a Task 3.4
 );
 
 /* ----------------------------------- */
