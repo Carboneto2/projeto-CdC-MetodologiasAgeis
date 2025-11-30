@@ -10,9 +10,10 @@ CREATE TABLE IF NOT EXISTS Turma (
 CREATE TABLE IF NOT EXISTS Aluno (
     idaluno INTEGER PRIMARY KEY AUTOINCREMENT,
     nomealuno varchar(100) NOT NULL,
-    matricula varchar(30)
+    matricula varchar(30),
     idturma INTEGER,       -- ADICIONADO: Para vincular à tabela Turma
-    foto varchar(255),     -- ADICIONADO: Para a Task 3.4
+    foto varchar(255),
+    FOREIGN KEY(idturma) REFERENCES Turma(idturma)     -- ADICIONADO: Para a Task 3.4
 );
 
 /* ----------------------------------- */
