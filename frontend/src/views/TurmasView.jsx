@@ -6,22 +6,59 @@ import Input from "../components/Input";
 
 export default function TurmasView() {
   const { turmas, add, update, remove } = useTurmas();
+  
+  // Estado para controlar a edição
+  const [editId, setEditId] = useState(null);
+  
   const [nome, setNome] = useState("");
   const [ano, setAno] = useState("");
   const [turno, setTurno] = useState("Manhã");
 
-  const handleAdd = (e) => {
-    e.preventDefault();
-    if (!nome.trim()) return;
-    add({ nome: nome.trim(), ano: ano || new Date().getFullYear(), turno });
+  // Prepara o formulário para edição ao clicar no botão Editar
+  const handleEditClick = (t) => {
+    setEditId(t.id);
+    setNome(t.nome);
+    setAno(t.ano);
+    setTurno(t.turno);
+  };
+
+  // Cancela a edição
+  const handleCancelEdit = () => {
+    setEditId(null);
     setNome("");
     setAno("");
+    setTurno("Manhã");
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!nome.trim()) return;
+
+    if (editId) {
+      // Atualizando turma existente
+      update(editId, { nome, ano, turno });
+      alert("Turma atualizada com sucesso!");
+      handleCancelEdit();
+    } else {
+      // Criando nova turma
+      add({ nome: nome.trim(), ano: ano || new Date().getFullYear(), turno });
+      alert("Cadastro realizado com sucesso!");
+      // Limpa campos
+      setNome("");
+      setAno("");
+    }
+  };
+
+  const handleExcluir = (id) => {
+    if (window.confirm("Tem certeza que deseja excluir esta turma?")) {
+      remove(id);
+    }
   };
 
   return (
     <div className="grid md:grid-cols-2 gap-4">
-      <Card title="Cadastrar turma">
-        <form onSubmit={handleAdd} className="space-y-3">
+      <Card title={editId ? "Editar turma" : "Cadastrar turma"}>
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="text-sm">Nome da turma</label>
             <Input
@@ -52,9 +89,16 @@ export default function TurmasView() {
               </select>
             </div>
           </div>
-          <Button className="bg-black text-white" type="submit">
-            Adicionar
-          </Button>
+          <div className="flex gap-2">
+            <Button className="bg-black text-white" type="submit">
+              {editId ? "Salvar Alterações" : "Adicionar"}
+            </Button>
+            {editId && (
+              <Button type="button" onClick={handleCancelEdit} className="bg-gray-200">
+                Cancelar
+              </Button>
+            )}
+          </div>
         </form>
       </Card>
 
@@ -79,16 +123,13 @@ export default function TurmasView() {
               <div className="flex gap-2">
                 <Button
                   className="bg-white border"
-                  onClick={() => {
-                    const novoNome = prompt("Novo nome da turma", t.nome);
-                    if (novoNome !== null) update(t.id, { nome: novoNome });
-                  }}
+                  onClick={() => handleEditClick(t)}
                 >
                   Editar
                 </Button>
                 <Button
                   className="bg-red-600 text-white"
-                  onClick={() => remove(t.id)}
+                  onClick={() => handleExcluir(t.id)}
                 >
                   Excluir
                 </Button>

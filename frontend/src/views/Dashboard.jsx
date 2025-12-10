@@ -6,7 +6,9 @@ import FormBuilderView from "./FormBuilderView";
 import ComparacaoView from "./ComparacaoView";
 
 export default function Dashboard({ user, logout }) {
-  const [active, setActive] = useState("visao_geral"); 
+  // Define "comparacao" como a tela inicial padrão
+  const [active, setActive] = useState("comparacao");
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar active={active} setActive={setActive} onLogout={logout} />
@@ -16,17 +18,19 @@ export default function Dashboard({ user, logout }) {
             Bem-vindo(a), {user?.nome || user?.email}
           </h2>
           <div className="text-xs text-gray-500">
-            Dados salvos localmente (sem servidor)
+            Dados salvos localmente
           </div>
         </div>
-            {active === "visao_geral" && <ComparacaoView />}  {/* <--- ADICIONAR ISSO */}
-            {active === "turmas" && <TurmasView />}
-            {active === "alunos" && <AlunosView />}
-            {active === "formularios" && <FormBuilderView />}
+        
+        {/* RENDERIZAÇÃO CONDICIONAL */}
+        {active === "turmas" && <TurmasView />}
+        {active === "alunos" && <AlunosView />}
+        {active === "formularios" && <FormBuilderView />}
+        {active === "comparacao" && <ComparacaoView />}
+        
       </main>
-      <footer className="max-w-6xl mx-auto px-4 pb-6 text-xs text-gray-500">
-        Dica: para produção, conecte com uma API (ex.: Node/Express + banco) e
-        habilite perfis/roles (coordenação, professores, etc.).
+      <footer className="max-w-6xl mx-auto px-4 pb-6 text-xs text-gray-500 text-center">
+        Sistema de Conselho de Classe - Versão Local
       </footer>
     </div>
   );

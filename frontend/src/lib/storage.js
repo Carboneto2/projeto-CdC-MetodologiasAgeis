@@ -1,4 +1,5 @@
-// Constantes e funções de LocalStorage
+// frontend/src/lib/storage.js
+
 export const LS_KEYS = {
   USERS: "cc_users",
   AUTH: "cc_auth",
@@ -19,4 +20,9 @@ export function readLS(key, fallback) {
 
 export function writeLS(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+// Função segura para gerar IDs (substitui crypto.randomUUID)
+export function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
