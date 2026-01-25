@@ -118,3 +118,12 @@ CREATE TABLE IF NOT EXISTS Resposta_Escala (
     FOREIGN KEY(idresposta) REFERENCES Resposta(idresposta),
     FOREIGN KEY(idescala) REFERENCES Escala(idescala)
 );
+
+/* TAREFA 3.1 - Tabela de Usuários */
+CREATE TABLE IF NOT EXISTS Usuario (
+    idusuario INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome varchar(100) NOT NULL,
+    login varchar(50) UNIQUE NOT NULL,
+    senha_hash varchar(200) NOT NULL,
+    perfil varchar(20) NOT NULL -- 'coordenador' ou 'professor'
+);

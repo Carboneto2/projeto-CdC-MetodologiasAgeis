@@ -4,6 +4,7 @@ import json
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 CORS(app) # Permite que o Frontend (React) converse com esse Backend
@@ -281,6 +282,35 @@ def get_alertas():
     lista_alertas.sort(key=lambda x: x['ocorrencias'], reverse=True)
     
     return jsonify(lista_alertas)
+# --- TAREFA 3.1: Rota de Autenticação ---
+@app.route('/login', methods=['POST'])
+def login():
+    dados = request.json
+    login_user = dados.get('login')
+    senha_user = dados.get('senha')
+
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Busca o usuário no banco
+    usuario = cursor.execute('SELECT * FROM Usuario WHERE login = ?', (login_user,)).fetchone()
+    conn.close()
+
+    # Se não achar o usuário OU a senha estiver errada
+    if usuario is None or not check_password_hash(usuario['senha_hash'], senha_user):
+        return jsonify({'erro': 'Usuário ou senha inválidos.'}), 401
+
+    # Sucesso! Retorna os dados do usuário
+    return jsonify({
+        'mensagem': 'Login realizado!',
+        'usuario': {
+            'id': usuario['idusuario'],
+            'nome': usuario['nome'],
+            'login': usuario['login'],
+            'perfil': usuario['perfil']
+        }
+    }), 200
+
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
         init_db()
