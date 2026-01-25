@@ -1,23 +1,55 @@
-import React, { useEffect, useState } from "react";
-import { useAuth } from "./hooks/useAuth";
-import LoginView from "./views/LoginView";
-import Dashboard from "./views/Dashboard";
+import React, { useContext } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, AuthContext } from './context/AuthContext';
 
-export default function App() {
-  const auth = useAuth();
-  const [ready, setReady] = useState(false);
-  
-  useEffect(() => {
-    setReady(true);
-  }, []);
-  
-  if (!ready) {
-    return null; // Evita "piscar" a tela
-  }
-  
-  if (!auth.user) {
-    return <LoginView login={auth.login} register={auth.register} />;
-  }
-  
-  return <Dashboard user={auth.user} logout={auth.logout} />;
+// --- IMPORTS ---
+import { Navbar } from './components/Navbar';
+import { LoginView } from './views/LoginView';
+import { CadastroUsuario } from './views/CadastroUsuario';
+import TurmasView from './views/TurmasView';
+
+// --- TRAGA DE VOLTA SEUS ARQUIVOS ANTIGOS AQUI ---
+// (Verifique se os nomes dos arquivos estão certinhos na sua pasta views)
+import AlunosView from './views/AlunosView'; 
+import ComparacaoView from './views/ComparacaoView'; 
+
+const RotaProtegida = ({ children }) => {
+  const { authenticated, loading } = useContext(AuthContext);
+  if (loading) return <div>Carregando...</div>;
+  if (!authenticated) return <Navigate to="/login" />;
+  return (
+    <>
+      <Navbar /> 
+      <div style={{ padding: '20px' }}>
+        {children}
+      </div>
+    </>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<LoginView />} />
+
+          {/* Rota Home (Turmas) */}
+          <Route path="/" element={<RotaProtegida><TurmasView /></RotaProtegida>} />
+
+          {/* Rota Alunos (Recuperada) */}
+          <Route path="/alunos" element={<RotaProtegida><AlunosView /></RotaProtegida>} />
+
+          {/* Rota Comparação (Recuperada) */}
+          <Route path="/comparacao" element={<RotaProtegida><ComparacaoView /></RotaProtegida>} />
+
+          {/* Rota Admin */}
+          <Route path="/cadastro-usuario" element={<RotaProtegida><CadastroUsuario /></RotaProtegida>} />
+
+        </Routes>
+      </Router>
+    </AuthProvider>
+  );
 }
+
+export default App;

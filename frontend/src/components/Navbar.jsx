@@ -1,38 +1,45 @@
-import React from "react";
-import Button from "./Button";
+import React, { useContext } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
+import './Navbar.css';
 
-export default function Navbar({ active, setActive, onLogout }) {
-  const tabs = [
-    { id: "comparacao", label: "Painel Central" }, // Agora é o primeiro e com novo nome
-    { id: "turmas", label: "Turmas" },
-    { id: "alunos", label: "Alunos" },
-    { id: "formularios", label: "Conselho de Classe" },
-  ];
-  
-  return (
-    <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-black" />
-          <div className="font-semibold hidden sm:block">Sistema Escolar</div>
-        </div>
-        <div className="flex items-center gap-2 overflow-x-auto">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActive(t.id)}
-              className={`px-3 py-2 rounded-full text-sm whitespace-nowrap transition ${
-                active === t.id ? "bg-black text-white" : "hover:bg-gray-100"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-          <Button className="bg-white border text-sm" onClick={onLogout}>
-            Sair
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
+export function Navbar() {
+    const { user, logout } = useContext(AuthContext);
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
+
+    return (
+        <nav className="navbar">
+            <div className="navbar-logo">
+                <Link to="/">Conselho de Classe</Link>
+            </div>
+
+            <div className="navbar-links">
+                {/* 1. TELA DE TURMAS (Home) */}
+                <Link to="/" className="nav-link">Turmas</Link>
+
+                {/* 2. TELA DE ALUNOS (Sprint anterior) */}
+                <Link to="/alunos" className="nav-link">Alunos</Link>
+
+                {/* 3. TELA DE COMPARAÇÃO (Sprint anterior) */}
+                <Link to="/comparacao" className="nav-link">Relatórios</Link>
+
+                {/* 4. BOTÃO EXCLUSIVO DE ADMIN (Novo Usuário) */}
+                {user && user.perfil === 'coordenador' && (
+                    <Link to="/cadastro-usuario" className="nav-link destaque">
+                        + Novo Usuário
+                    </Link>
+                )}
+            </div>
+
+            <div className="navbar-user">
+                <span>Olá, {user ? user.nome : 'Visitante'}</span>
+                <button onClick={handleLogout} className="btn-sair">Sair</button>
+            </div>
+        </nav>
+    );
 }
