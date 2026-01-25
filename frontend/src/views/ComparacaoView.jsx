@@ -1,265 +1,211 @@
-import React, { useState, useMemo } from "react";
-import { useForms } from "../hooks/useForms";
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTurmas } from "../hooks/useTurmas";
 import { useAlunos } from "../hooks/useAlunos";
-import Card from "../components/Card";
-import Input from "../components/Input";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function ComparacaoView() {
-  const { forms, respostas } = useForms();
   const { turmas } = useTurmas();
   const { alunos } = useAlunos();
 
-  const [filtroNome, setFiltroNome] = useState("");
+  // Estados dos Dados
+  const [formularios, setFormularios] = useState([]); // Modelos das perguntas
+  const [todasRespostas, setTodasRespostas] = useState([]); // Respostas vindas do banco
+
+  // Filtros
   const [filtroTurma, setFiltroTurma] = useState("");
-  const [filtroCategoria, setFiltroCategoria] = useState("");
-  const [fotoExpandida, setFotoExpandida] = useState(null);
+  const [filtroForm, setFiltroForm] = useState("");
 
-  const CATEGORIAS_RISCO = [
-    "Relação de Estudantes DESTAQUES (Cite os nomes):",
-    "Relação de Estudantes INFREQUENTES (Cite os nomes):",
-    "Discentes com MAIORES DIFICULDADES de aprendizagem (Cite os nomes):",
-    "Quais estudantes NÃO atingiram a média no trimestre? (Cite os nomes):",
-    "Sugestão para encaminhamento ao APOIO PSICOLÓGICO (Cite os nomes):",
-    "NAE: Quais estudantes foram atendidos pelos serviços de apoio psicológico?",
-    "NAE: Discentes atendidos pelo SERVIÇO SOCIAL (Cite os nomes):"
-  ];
+  // --- 1. CARREGAR DADOS DO BACKEND ---
+  useEffect(() => {
+    // Busca Modelos de Formulário (para saber os enunciados)
+    fetch('http://localhost:5000/formularios')
+        .then(res => res.json())
+        .then(data => setFormularios(data));
 
-  // --- CÁLCULO DO RESUMO ---
-  const resumo = useMemo(() => {
-    const totalAlunos = alunos.length;
-    const totalTurmas = turmas.length;
-    const contagemTurno = { "Manhã": 0, "Tarde": 0, "Noite": 0 };
-    
-    turmas.forEach(t => {
-        const qtdAlunos = alunos.filter(a => a.turmaId === t.id).length;
-        if (contagemTurno[t.turno] !== undefined) {
-            contagemTurno[t.turno] += qtdAlunos;
-        }
-    });
+    // Busca Respostas (para saber o que escreveram)
+    fetch('http://localhost:5000/respostas')
+        .then(res => res.json())
+        .then(data => setTodasRespostas(data));
+  }, []);
 
-    const alunosPorTurno = Object.entries(contagemTurno).map(([turno, count]) => ({ turno, count }));
-    return { total_alunos: totalAlunos, total_turmas: totalTurmas, alunos_por_turno: alunosPorTurno };
-  }, [alunos, turmas]);
+  // --- 2. PROCESSAMENTO DOS DADOS ---
+  
+  // A. Estatísticas da Turma (Alunos)
+  const statsTurma = useMemo(() => {
+      if (!filtroTurma) return null;
+      const alunosDaTurma = alunos.filter(a => String(a.turmaId) === String(filtroTurma));
+      const total = alunosDaTurma.length;
+      if (total === 0) return null;
 
-  // --- PROCESSAMENTO DAS RESPOSTAS ---
-  const citacoesProcessadas = useMemo(() => {
-    if (!respostas.length || !forms.length || !alunos.length) return [];
+      // Exemplo simples de lógica de risco (ajuste conforme sua regra)
+      // Vamos supor que temos notas nos alunos, ou apenas contagem
+      return {
+          total,
+          emRisco: Math.floor(total * 0.2), // Simulação: 20% em risco
+          bons: Math.floor(total * 0.5),
+          excelentes: Math.floor(total * 0.3)
+      };
+  }, [alunos, filtroTurma]);
 
-    const lista = [];
-    const mapaAlunos = new Map(alunos.map(a => [a.nome.trim().toLowerCase(), a]));
-    const mapaTurmas = new Map(turmas.map(t => [String(t.id), t.nome]));
+  // B. Consolidação das Respostas do Formulário
+  const relatorioQualitativo = useMemo(() => {
+      if (!filtroForm || !filtroTurma) return null;
 
-    respostas.forEach(r => {
-      const form = forms.find(f => String(f.id) === String(r.formId));
-      if (!form || !r.payload) return;
+      const modelo = formularios.find(f => String(f.id) === String(filtroForm));
+      if (!modelo) return null;
 
-      const nomeTurma = mapaTurmas.get(String(r.turmaId)) || "Turma removida";
+      // Filtra respostas apenas desta turma e deste formulário
+      const respostasFiltradas = todasRespostas.filter(r => 
+          String(r.formulario_id) === String(filtroForm) && 
+          String(r.turma_id) === String(filtroTurma)
+      );
 
-      Object.entries(r.payload).forEach(([perguntaId, respostaValor]) => {
-        const pergunta = form.perguntas.find(p => p.id === perguntaId);
-        if (!pergunta) return;
-        
-        const enunciado = pergunta.enunciado;
-        const ehCategoriaRisco = CATEGORIAS_RISCO.some(cat => enunciado.includes(cat.substring(0, 20)));
-
-        if (ehCategoriaRisco && typeof respostaValor === 'string') {
-            const nomesCitados = respostaValor.split('\n')
-                .map(linha => linha.replace(/^-\s*/, '').trim())
-                .filter(Boolean);
-
-            nomesCitados.forEach(nome => {
-                const dadosAluno = mapaAlunos.get(nome.toLowerCase());
-                if (dadosAluno) {
-                    lista.push({
-                        id: crypto.randomUUID(),
-                        alunoNome: dadosAluno.nome,
-                        alunoMatricula: dadosAluno.matricula,
-                        alunoFoto: dadosAluno.foto,
-                        turma: nomeTurma,
-                        turmaId: String(r.turmaId),
-                        categoria: enunciado,
-                        data: r.data,
-                        formTitulo: form.titulo
-                    });
-                }
-            });
-        }
+      // Agrupa as respostas por pergunta
+      const consolidado = modelo.perguntas.map(pergunta => {
+          const respostasDestaPergunta = respostasFiltradas.map(r => r.respostas[pergunta.id]).filter(Boolean);
+          
+          return {
+              id: pergunta.id,
+              enunciado: pergunta.enunciado,
+              tipo: pergunta.tipo,
+              respostas: respostasDestaPergunta
+          };
       });
-    });
-    return lista;
-  }, [respostas, forms, alunos, turmas]);
 
-  // --- FILTRAGEM ---
-  const dadosFiltrados = useMemo(() => {
-    return citacoesProcessadas.filter(item => {
-      const matchNome = filtroNome === "" || item.alunoNome.toLowerCase().includes(filtroNome.toLowerCase());
-      const matchTurma = filtroTurma === "" || item.turmaId === filtroTurma;
-      const matchCategoria = filtroCategoria === "" || item.categoria === filtroCategoria;
-      return matchNome && matchTurma && matchCategoria;
-    });
-  }, [citacoesProcessadas, filtroNome, filtroTurma, filtroCategoria]);
+      return {
+          totalParticipantes: respostasFiltradas.length,
+          questoes: consolidado
+      };
 
-  const maiorContagem = Math.max(...resumo.alunos_por_turno.map((t) => t.count), 1);
+  }, [formularios, todasRespostas, filtroForm, filtroTurma]);
+
+  // Cores para gráficos
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div className="bg-black text-white p-5 rounded-2xl shadow">
-          <div className="text-3xl font-bold">{resumo.total_alunos}</div>
-          <div className="text-sm opacity-80">Total de Alunos</div>
-        </div>
-        <div className="bg-white p-5 rounded-2xl shadow border">
-          <div className="text-3xl font-bold">{resumo.total_turmas}</div>
-          <div className="text-sm text-gray-500">Turmas Cadastradas</div>
-        </div>
-        <div className="bg-blue-50 p-5 rounded-2xl shadow border border-blue-100">
-          <div className="text-3xl font-bold text-blue-600">{citacoesProcessadas.length}</div>
-          <div className="text-sm text-blue-800">Ocorrências / Citações</div>
-        </div>
+      <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-gray-800">Relatórios do Conselho</h2>
+          <div className="text-sm text-gray-500">
+              Respostas Recebidas: <span className="font-bold text-black">{todasRespostas.length}</span>
+          </div>
       </div>
 
-      {/* Gráfico Rápido */}
-      <div className="grid md:grid-cols-1 gap-6">
-        <Card title="Distribuição de Alunos por Turno" subtitle="Visão geral de matrículas">
-          <div className="space-y-3 mt-2">
-            {resumo.alunos_por_turno.map((item) => {
-              const porcentagem = (item.count / maiorContagem) * 100;
-              return (
-                <div key={item.turno}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium">{item.turno}</span>
-                    <span className="text-gray-500">{item.count}</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2">
-                    <div className="bg-black h-2 rounded-full transition-all duration-500" style={{ width: `${porcentagem}%` }} />
-                  </div>
-                </div>
-              );
-            })}
+      {/* --- BARRA DE FILTROS --- */}
+      <div className="bg-white p-4 rounded-lg shadow border flex flex-wrap gap-4 items-end">
+          <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-bold text-gray-700 mb-1">1. Escolha a Turma</label>
+              <select 
+                  className="w-full border p-2 rounded bg-gray-50"
+                  value={filtroTurma}
+                  onChange={e => setFiltroTurma(e.target.value)}
+              >
+                  <option value="">-- Selecione --</option>
+                  {turmas.map(t => <option key={t.id} value={t.id}>{t.nome} - {t.ano}</option>)}
+              </select>
           </div>
-        </Card>
+
+          <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-bold text-gray-700 mb-1">2. Escolha o Questionário</label>
+              <select 
+                  className="w-full border p-2 rounded bg-gray-50"
+                  value={filtroForm}
+                  onChange={e => setFiltroForm(e.target.value)}
+              >
+                  <option value="">-- Selecione --</option>
+                  {formularios.map(f => <option key={f.id} value={f.id}>{f.titulo}</option>)}
+              </select>
+          </div>
       </div>
 
-      {/* --- PAINEL CENTRAL (ANTIGO RISCO) --- */}
-      <Card 
-        title="🚩 Painel Central" 
-        subtitle="Monitore as citações e alertas gerados nos conselhos de classe."
-        className="border-t-4 border-t-red-500"
-      >
-        <div className="grid md:grid-cols-3 gap-4 mb-6 bg-gray-50 p-4 rounded-xl border">
-          <div>
-            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Buscar Aluno</label>
-            <Input 
-              placeholder="Digite o nome..." 
-              value={filtroNome}
-              onChange={(e) => setFiltroNome(e.target.value)}
-              className="bg-white"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Filtrar por Turma</label>
-            <select 
-              className="w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-black/10 bg-white"
-              value={filtroTurma}
-              onChange={(e) => setFiltroTurma(e.target.value)}
-            >
-              <option value="">Todas as Turmas</option>
-              {turmas.map(t => (
-                <option key={t.id} value={String(t.id)}>{t.nome}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Indicador</label>
-            <select 
-              className="w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-black/10 bg-white text-sm"
-              value={filtroCategoria}
-              onChange={(e) => setFiltroCategoria(e.target.value)}
-            >
-              <option value="">Todas as Citações</option>
-              {CATEGORIAS_RISCO.map((cat, i) => (
-                <option key={i} value={cat}>
-                  {cat.length > 50 ? cat.substring(0, 50) + "..." : cat}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+      {/* --- CONTEÚDO DO RELATÓRIO --- */}
+      {filtroTurma && filtroForm && relatorioQualitativo ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* COLUNA ESQUERDA: DADOS DA TURMA (Instâncias) */}
+              <div className="space-y-6">
+                  <div className="bg-white p-5 rounded-lg shadow border-l-4 border-blue-900">
+                      <h3 className="font-bold text-lg mb-2">Visão da Turma</h3>
+                      {statsTurma && (
+                          <div className="space-y-4">
+                              <div className="flex justify-between text-sm">
+                                  <span>Total de Alunos:</span>
+                                  <span className="font-bold">{statsTurma.total}</span>
+                              </div>
+                              <div className="h-48">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={[
+                                                {name: 'Em Risco', value: statsTurma.emRisco},
+                                                {name: 'Regulares', value: statsTurma.bons},
+                                                {name: 'Excelentes', value: statsTurma.excelentes},
+                                            ]}
+                                            cx="50%" cy="50%" innerRadius={40} outerRadius={70} fill="#8884d8" paddingAngle={5} dataKey="value"
+                                        >
+                                            <Cell fill="#FF8042" /> {/* Risco */}
+                                            <Cell fill="#0088FE" /> {/* Bons */}
+                                            <Cell fill="#00C49F" /> {/* Excelentes */}
+                                        </Pie>
+                                        <Tooltip />
+                                        <Legend verticalAlign="bottom" height={36}/>
+                                    </PieChart>
+                                </ResponsiveContainer>
+                              </div>
+                              <p className="text-xs text-gray-500 text-center">Simulação baseada no cadastro de alunos.</p>
+                          </div>
+                      )}
+                  </div>
 
-        {dadosFiltrados.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 border-2 border-dashed rounded-xl">
-            Nenhuma citação encontrada com esses filtros.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-gray-600 border-b">
-                <tr>
-                  <th className="py-3 px-4">Aluno</th>
-                  <th className="py-3 px-4">Turma</th>
-                  <th className="py-3 px-4">Motivo da Citação</th>
-                  <th className="py-3 px-4 text-right">Data</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {dadosFiltrados.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <div 
-                            className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 border cursor-zoom-in hover:border-blue-500 transition"
-                            onClick={() => setFotoExpandida(item.alunoFoto)}
-                        >
-                            {item.alunoFoto ? (
-                              <img src={item.alunoFoto} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-xs">📷</div>
-                            )}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-gray-900">{item.alunoNome}</div>
-                          <div className="text-xs text-gray-500">Mat: {item.alunoMatricula || "-"}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {item.turma}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="text-gray-900 font-medium" title={item.categoria}>
-                        {item.categoria}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-0.5">{item.formTitulo}</div>
-                    </td>
-                    <td className="py-3 px-4 text-right text-gray-500 whitespace-nowrap">
-                      {new Date(item.data).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+                  <div className="bg-blue-50 p-5 rounded-lg border border-blue-100">
+                      <h3 className="font-bold text-blue-900 mb-1">Participação</h3>
+                      <p className="text-3xl font-bold">{relatorioQualitativo.totalParticipantes}</p>
+                      <p className="text-sm text-blue-700">Respostas enviadas por docentes/equipe.</p>
+                  </div>
+              </div>
 
-      {fotoExpandida && (
-        <div 
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-zoom-out"
-            onClick={() => setFotoExpandida(null)}
-        >
-            <div className="relative">
-                <img 
-                    src={fotoExpandida} 
-                    alt="Foto Expandida" 
-                    className="max-w-full max-h-[90vh] rounded-lg shadow-2xl border-4 border-white"
-                />
-                <button className="absolute -top-4 -right-4 bg-white text-black rounded-full w-8 h-8 font-bold flex items-center justify-center shadow">✕</button>
-            </div>
-        </div>
+              {/* COLUNA DIREITA: RESPOSTAS DO FORMULÁRIO (Qualitativo) */}
+              <div className="lg:col-span-2 space-y-4">
+                  {relatorioQualitativo.questoes.map((q, idx) => (
+                      <div key={q.id} className="bg-white p-5 rounded-lg shadow-sm border hover:border-blue-300 transition">
+                          <h4 className="font-bold text-gray-800 mb-3 flex gap-2">
+                              <span className="bg-gray-200 text-gray-600 px-2 rounded text-sm flex items-center">{idx + 1}</span>
+                              {q.enunciado}
+                          </h4>
+
+                          {q.respostas.length === 0 ? (
+                              <p className="text-gray-400 italic text-sm">Sem respostas para esta questão.</p>
+                          ) : (
+                              <div className="space-y-2">
+                                  {/* SE FOR LISTA DE NOMES (Citações) */}
+                                  {q.enunciado.includes("Cite") || q.enunciado.includes("Quais") ? (
+                                      <div className="flex flex-wrap gap-2">
+                                          {q.respostas.join(', ').split(', ').filter(Boolean).map((nome, i) => (
+                                              <span key={i} className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-sm border border-yellow-200 font-medium">
+                                                  👤 {nome}
+                                              </span>
+                                          ))}
+                                      </div>
+                                  ) : (
+                                      /* RESPOSTAS NORMAIS */
+                                      <ul className="list-disc list-inside space-y-1">
+                                          {q.respostas.map((resp, i) => (
+                                              <li key={i} className="text-gray-700 text-sm bg-gray-50 p-2 rounded">
+                                                  {resp}
+                                              </li>
+                                          ))}
+                                      </ul>
+                                  )}
+                              </div>
+                          )}
+                      </div>
+                  ))}
+              </div>
+          </div>
+      ) : (
+          <div className="text-center py-20 bg-gray-50 border-2 border-dashed rounded-xl">
+              <p className="text-xl text-gray-400 font-medium">Selecione uma Turma e um Questionário acima para gerar o relatório.</p>
+          </div>
       )}
     </div>
   );

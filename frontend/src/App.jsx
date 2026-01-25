@@ -2,36 +2,49 @@ import React, { useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 
-// --- IMPORTS CORRIGIDOS ---
 import { Navbar } from './components/Navbar';
 import { LoginView } from './views/LoginView';
-import { CadastroUsuario } from './views/CadastroUsuario';
-
-// 1. O IMPORT DO DASHBOARD AGORA ESTÁ CERTO:
-import { Dashboard } from './views/Dashboard'; 
-
-// 2. SEUS ARQUIVOS ANTIGOS (Baseado no que você me mandou antes, esses usam export default)
+import { Dashboard } from './views/Dashboard';
 import TurmasView from './views/TurmasView';
-import FormBuilderView from './views/FormBuilderView';
+import AlunosView from './views/AlunosView';
+import FormBuilderView from './views/FormBuilderView'; 
+import ComparacaoView from './views/ComparacaoView';   
+import GestaoUsuariosView from './views/GestaoUsuariosView'; 
+import AreaRestritaView from './views/AreaRestritaView'; 
 
-// 3. ESSES AQUI SÃO "CHUTES" (Se der erro neles, tente adicionar ou tirar as chaves { })
-// Vou assumir que são 'export default' igual ao TurmasView
-import AlunosView from './views/AlunosView';         
-import ComparacaoView from './views/ComparacaoView'; 
+// --- FUNÇÃO AUXILIAR PARA VERIFICAR SE É ADMIN ---
+const isUserAdmin = (user) => {
+    if (!user) return false;
+    return user.perfil === 'Coordenador' || user.perfil === 'coordenador' || user.login === 'admin';
+};
 
-const RotaProtegida = ({ children }) => {
-  const { authenticated, loading } = useContext(AuthContext);
+const HomeRedirect = () => {
+  const { user, authenticated, loading } = useContext(AuthContext);
   if (loading) return <div>Carregando...</div>;
   if (!authenticated) return <Navigate to="/login" />;
+
+  // Se for Admin, vai pro Dashboard. Se não, Área Restrita.
+  if (isUserAdmin(user)) return <Navigate to="/dashboard" />;
+  return <Navigate to="/area-restrita" />;
+};
+
+const RotaProtegida = ({ children }) => {
+    const { authenticated, loading } = useContext(AuthContext);
+    if (loading) return <div>...</div>;
+    if (!authenticated) return <Navigate to="/login" />;
+    return <><Navbar /><div className="p-5">{children}</div></>;
+};
+
+const RotaAdmin = ({ children }) => {
+  const { user, authenticated, loading } = useContext(AuthContext);
+  if (loading) return <div>...</div>;
+  if (!authenticated) return <Navigate to="/login" />;
   
-  return (
-    <>
-      <Navbar /> 
-      <div style={{ padding: '20px' }}>
-        {children}
-      </div>
-    </>
-  );
+  // VERIFICAÇÃO FLEXÍVEL
+  if (!isUserAdmin(user)) {
+      return <Navigate to="/area-restrita" />;
+  }
+  return <><Navbar /><div className="p-5">{children}</div></>;
 };
 
 function App() {
@@ -40,20 +53,18 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<LoginView />} />
+          <Route path="/" element={<HomeRedirect />} />
 
-          {/* ROTA PRINCIPAL: DASHBOARD */}
-          <Route path="/" element={
-            <RotaProtegida>
-              <Dashboard />
-            </RotaProtegida>
-          } />
+          {/* ROTAS ADMIN */}
+          <Route path="/dashboard" element={<RotaAdmin><Dashboard /></RotaAdmin>} />
+          <Route path="/usuarios" element={<RotaAdmin><GestaoUsuariosView /></RotaAdmin>} />
+          <Route path="/turmas" element={<RotaAdmin><TurmasView /></RotaAdmin>} />
+          <Route path="/alunos" element={<RotaAdmin><AlunosView /></RotaAdmin>} />
+          <Route path="/criar-formulario" element={<RotaAdmin><FormBuilderView /></RotaAdmin>} />
+          <Route path="/comparacao" element={<RotaAdmin><ComparacaoView /></RotaAdmin>} />
 
-          <Route path="/turmas" element={<RotaProtegida><TurmasView /></RotaProtegida>} />
-          <Route path="/cadastro-usuario" element={<RotaProtegida><CadastroUsuario /></RotaProtegida>} />
-          <Route path="/criar-formulario" element={<RotaProtegida><FormBuilderView /></RotaProtegida>} />
-          <Route path="/alunos" element={<RotaProtegida><AlunosView /></RotaProtegida>} />
-          <Route path="/comparacao" element={<RotaProtegida><ComparacaoView /></RotaProtegida>} />
-
+          {/* ROTA COMUM */}
+          <Route path="/area-restrita" element={<RotaProtegida><AreaRestritaView /></RotaProtegida>} />
         </Routes>
       </Router>
     </AuthProvider>

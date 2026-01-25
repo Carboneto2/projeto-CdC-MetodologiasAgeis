@@ -1,466 +1,310 @@
-import React, { useState, useMemo } from "react";
-import { useForms } from "../hooks/useForms";
-import { useTurmas } from "../hooks/useTurmas";
-import { useAlunos } from "../hooks/useAlunos";
-import { LS_KEYS, writeLS, generateId } from "../lib/storage";
+import React, { useState, useEffect } from "react";
+import { generateId } from "../lib/storage";
 
-import Card from "../components/Card";
-import Button from "../components/Button";
-import Input from "../components/Input";
-import Textarea from "../components/Textarea";
-import Tag from "../components/Tag";
-import PerguntaEditor from "../components/PerguntaEditor";
+// Lista de Cargos para os Checkboxes
+const CARGOS_SISTEMA = [
+  "Docente",
+  "Coordenador",
+  "NAE - Atendimento Psicológico",
+  "NAE - Assistente Social",
+  "NAE - Assistente de Aluno",
+  "NAPNE",
+  "NEABI",
+  "NEPGES"
+];
 
 export default function FormBuilderView() {
-  const {
-    forms,
-    addForm,
-    updateForm,
-    removeForm,
-    respostas,
-    removeResposta,
-    addResposta,
-  } = useForms();
-  const { turmas } = useTurmas();
-  const { alunos } = useAlunos();
-
-  const [titulo, setTitulo] = useState("Conselho de Classe — Formulário padrão");
-  const [descricao, setDescricao] = useState(
-    "Use este formulário para registrar percepções, notas e encaminhamentos."
-  );
+  // --- ESTADOS ---
+  const [titulo, setTitulo] = useState("Conselho de Classe — Modelo Novo");
+  const [descricao, setDescricao] = useState("Descrição do formulário...");
   const [perguntas, setPerguntas] = useState([]);
+  
+  const [listaFormularios, setListaFormularios] = useState([]);
+  const [editandoId, setEditandoId] = useState(null); // Para saber se estamos criando ou editando
+  
+  // Estados de Visualização (Modal)
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [formPreview, setFormPreview] = useState(null);
 
-  // Estado para foto expandida (Zoom)
-  const [zoomFoto, setZoomFoto] = useState(null);
-
-  // Função auxiliar para identificar perguntas que citam alunos
-  const isStudentCitingQuestion = (enunciado) => {
-    // Verifica se a pergunta tem o padrão "(Cite os nomes):" ou é uma das exceções
-    return enunciado.includes('(Cite os nomes):') || 
-           enunciado.includes('Quais estudantes foram atendidos') || 
-           enunciado.includes('Quais estudantes NÃO atingiram');
+  // --- 1. CARREGAR DO BANCO ---
+  const carregarFormularios = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/formularios');
+      if (res.ok) setListaFormularios(await res.json());
+    } catch (error) { console.error(error); }
   };
+  
+  useEffect(() => { carregarFormularios(); }, []);
 
-  // --- MODELO OFICIAL ---
+  // --- 2. MODELO OFICIAL (RESTAURADO) ---
   const gerarModeloPadrao = () => {
-    if (perguntas.length > 0 && !window.confirm("Isso substituirá suas perguntas atuais. Continuar?")) {
-      return;
-    }
+    if (perguntas.length > 0 && !window.confirm("Isso substituirá suas perguntas atuais. Continuar?")) return;
 
     setTitulo("Conselho de Classe — Modelo Oficial");
     setDescricao("Análise completa da turma: Docente, NAE, NAPNE, NEABI e NEPGES.");
     
+    // Lista de perguntas padrão (agora com perfis incluídos!)
+    const todasPermissoes = [...CARGOS_SISTEMA];
+    
     setPerguntas([
-      { id: generateId(), tipo: "texto_longo", enunciado: "Fragilidades e positividades existentes na turma e proposições/soluções (Visão Coordenador):" },
-      { id: generateId(), tipo: "texto", enunciado: "Disciplina:" },
-      {
-        id: generateId(), tipo: "multipla", enunciado: "Em sua opinião, quais são as POTENCIALIDADES da turma?",
-        opcoes: ["Engajamento dos Alunos", "Colaboração", "Participação em Discussões", "Respeito Mútuo", "Alunos Motivados", "Foco na Melhoria", "Resiliência", "Participação em Atividades Extracurriculares", "Comunicação Eficaz", "Iniciativa", "Habilidade de Resolução de Conflitos", "Aceitação da Diversidade", "Frequência às Aulas", "Aproveitamento do Tempo de Estudo", "Atenção às Normas e Regulamentos", "Habilidades de Autodireção", "Participação dos Pais/Responsáveis", "Outro (descrever nas observações)"]
-      },
-      {
-        id: generateId(), tipo: "multipla", enunciado: "Em sua opinião, quais são as FRAGILIDADES da turma?",
-        opcoes: ["Baixo Envolvimento dos Alunos", "Dificuldade na Colaboração", "Participação Limitada em Discussões", "Falta de Respeito Mútuo", "Falta de Motivação", "Dificuldade em Aceitar Feedback", "Fragilidade Diante de Desafios", "Baixa Participação em Atividades Extracurriculares", "Comunicação Ineficaz", "Frequência Irregular às Aulas", "Procrastinação", "Desrespeito às Normas e Regulamentos", "Necessidade de Apoio", "Falta de Autodireção", "Pouco Envolvimento dos Pais/Responsáveis", "Conversas paralelas", "Outro (descrever nas observações)"]
-      },
-      // Perguntas de citação de aluno (transformadas em multi-select de nomes)
-      { id: generateId(), tipo: "texto_longo", enunciado: "Relação de Estudantes DESTAQUES (Cite os nomes):" },
-      { id: generateId(), tipo: "texto_longo", enunciado: "Relação de Estudantes INFREQUENTES (Cite os nomes):" },
-      { id: generateId(), tipo: "texto_longo", enunciado: "Discentes com MAIORES DIFICULDADES de aprendizagem (Cite os nomes):" },
-      { id: generateId(), tipo: "texto_longo", enunciado: "Detalhe as dificuldades (se achar conveniente):" }, // Campo de texto normal
-      { id: generateId(), tipo: "texto_longo", enunciado: "Quais estudantes NÃO atingiram a média no trimestre? (Cite os nomes):" },
-      { id: generateId(), tipo: "texto_longo", enunciado: "Sugestão para encaminhamento ao APOIO PSICOLÓGICO (Cite os nomes):" },
-      { id: generateId(), tipo: "texto_longo", enunciado: "NAE: Quais estudantes foram atendidos pelos serviços de apoio psicológico?" },
-      { id: generateId(), tipo: "texto_longo", enunciado: "NAE: Qual o tipo de atendimento ofertado?" }, // Campo de texto normal
-      { id: generateId(), tipo: "texto_longo", enunciado: "NAE: Discentes atendidos pelo SERVIÇO SOCIAL (Cite os nomes):" },
-      { id: generateId(), tipo: "texto_longo", enunciado: "NAE: Qual o tipo de atendimento necessário (Serviço Social)?" }, // Campo de texto normal
-      { id: generateId(), tipo: "texto_longo", enunciado: "Considerações do ASSISTENTE DE ALUNO:" }, // Campo de texto normal
-      { id: generateId(), tipo: "texto_longo", enunciado: "NAPNE: Relação de discentes com necessidades específicas (descrever tipo de atendimento):" }, // Campo de texto normal
-      // Perguntas de Sim/Não (Múltipla Escolha)
-      { id: generateId(), tipo: "multipla", enunciado: "NEABI: Houve ações para promover a discussão das relações étnico-raciais com a turma?", opcoes: ["Sim", "Não"] },
-      { id: generateId(), tipo: "texto_longo", enunciado: "NEABI: Se sim, relate as ações:" }, // Campo de texto normal
-      { id: generateId(), tipo: "multipla", enunciado: "NEPGES: Houve ações para promover a discussão sobre gênero e sexualidade com a turma?", opcoes: ["Sim", "Não"] },
-      { id: generateId(), tipo: "texto_longo", enunciado: "NEPGES: Se sim, relate as ações:" }, // Campo de texto normal
+      { id: generateId(), tipo: "texto_longo", enunciado: "Fragilidades e positividades da turma (Visão Geral)", perfis: todasPermissoes },
+      { id: generateId(), tipo: "multipla", enunciado: "Quais são as POTENCIALIDADES da turma?", opcoes: ["Engajamento", "Respeito", "Participação", "Notas Boas"], perfis: todasPermissoes },
+      { id: generateId(), tipo: "multipla", enunciado: "Quais são as FRAGILIDADES da turma?", opcoes: ["Conversas", "Faltas", "Desinteresse", "Dificuldade Técnica"], perfis: todasPermissoes },
+      { id: generateId(), tipo: "texto_longo", enunciado: "Relação de Estudantes DESTAQUES (Cite os nomes):", perfis: todasPermissoes },
+      { id: generateId(), tipo: "texto_longo", enunciado: "Relação de Estudantes INFREQUENTES (Cite os nomes):", perfis: todasPermissoes },
+      // Exemplo de pergunta específica
+      { id: generateId(), tipo: "texto_longo", enunciado: "Parecer do Psicólogo (NAE):", perfis: ["NAE - Atendimento Psicológico", "Coordenador"] },
     ]);
-    alert("Modelo Oficial carregado com sucesso!");
   };
 
+  // --- 3. MANIPULAÇÃO DAS PERGUNTAS ---
   const addPergunta = (tipo) => {
-    setPerguntas((x) => [
-      ...x,
+    setPerguntas((prev) => [
+      ...prev,
       {
         id: generateId(),
         tipo,
         enunciado: "",
-        opcoes: tipo === "multipla" ? ["Opção 1", "Opção 2"] : undefined,
-        min: tipo === "escala" ? 1 : undefined,
-        max: tipo === "escala" ? 5 : undefined,
+        opcoes: tipo === "multipla" ? ["Sim", "Não"] : undefined,
+        perfis: [...CARGOS_SISTEMA] // Nasce visível para todos
       },
     ]);
   };
 
-  const salvarFormulario = () => {
-    if (!titulo.trim() || perguntas.length === 0)
-      return alert("Defina título e ao menos 1 pergunta.");
+  const removePergunta = (id) => {
+    setPerguntas(prev => prev.filter(p => p.id !== id));
+  };
+
+  const updatePergunta = (id, campo, valor) => {
+    setPerguntas(prev => prev.map(p => p.id === id ? { ...p, [campo]: valor } : p));
+  };
+
+  const toggleCargoPergunta = (idPergunta, cargo) => {
+    setPerguntas(prev => prev.map(p => {
+        if (p.id !== idPergunta) return p;
+        const perfis = p.perfis || [];
+        const novos = perfis.includes(cargo) ? perfis.filter(c => c !== cargo) : [...perfis, cargo];
+        return { ...p, perfis: novos };
+    }));
+  };
+
+  // --- 4. AÇÕES (Salvar, Editar, Excluir, Visualizar) ---
+
+  const salvarFormulario = async () => {
+    if (!titulo.trim() || perguntas.length === 0) return alert("Preencha título e perguntas.");
+
+    // Se estiver editando, poderíamos fazer um PUT, mas por simplificação vamos criar novo ou deletar antigo.
+    // Aqui manteremos o POST (Criar Novo) como padrão do Admin.
     
-    addForm({ titulo: titulo.trim(), descricao: descricao.trim(), perguntas });
-    setTitulo("Conselho de Classe — Formulário padrão");
-    setDescricao("");
-    setPerguntas([]);
-    alert("Formulário salvo com sucesso!");
-  };
+    try {
+        const res = await fetch('http://localhost:5000/formularios', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ titulo, descricao, perguntas })
+        });
 
-  const handleExcluirForm = (id) => {
-    if(window.confirm("Deseja realmente excluir este formulário?")) {
-        removeForm(id);
-    }
-  }
-
-  const exportar = () => {
-    const payload = { turmas, alunos, forms, respostas };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "backup_conselho_classe.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importar = (file) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const json = JSON.parse(reader.result);
-        if (json.turmas && json.alunos && json.forms && json.respostas) {
-          writeLS(LS_KEYS.TURMAS, json.turmas);
-          writeLS(LS_KEYS.ALUNOS, json.alunos);
-          writeLS(LS_KEYS.FORMS, json.forms);
-          writeLS(LS_KEYS.RESPOSTAS, json.respostas);
-          alert("Importação concluída. Recarregue a página.");
-        } else {
-          alert("Arquivo inválido");
+        if (res.ok) {
+            alert("✅ Salvo com sucesso!");
+            setTitulo("Novo Modelo");
+            setDescricao("");
+            setPerguntas([]);
+            setEditandoId(null);
+            carregarFormularios();
         }
-      } catch (e) {
-        alert("Erro ao importar");
+    } catch (e) { alert("Erro de conexão."); }
+  };
+
+  // Carrega os dados para os inputs lá de cima
+  const handleEditar = (form) => {
+      setTitulo(form.titulo);
+      setDescricao(form.descricao || "");
+      setPerguntas(form.perguntas);
+      setEditandoId(form.id);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleExcluir = async (id) => {
+      if(window.confirm("Tem certeza que deseja apagar este formulário?")) {
+          await fetch(`http://localhost:5000/formularios/${id}`, { method: 'DELETE' });
+          carregarFormularios();
       }
-    };
-    reader.readAsText(file);
   };
 
-  // Preenchimento
-  const [fillOpen, setFillOpen] = useState(false);
-  const [fillFormId, setFillFormId] = useState("");
-  const [fillTurmaId, setFillTurmaId] = useState("");
-  const [fill, setFill] = useState({});
-
-  const selectedForm = useMemo(
-    () => forms.find((f) => f.id === fillFormId),
-    [forms, fillFormId]
-  );
-  
-  const alunosDaTurma = useMemo(
-    () => alunos.filter((a) => a.turmaId === fillTurmaId),
-    [alunos, fillTurmaId]
-  );
-
-  const submitPreenchimento = () => {
-    if (!selectedForm || !fillTurmaId)
-      return alert("Selecione a turma para enviar.");
-    
-    const payload = {};
-    for (const [key, value] of Object.entries(fill)) {
-        const question = selectedForm.perguntas.find(p => p.id === key);
-
-        if (!question) continue; // Pula se a pergunta não for encontrada
-
-        if (isStudentCitingQuestion(question.enunciado) && Array.isArray(value)) {
-            // Se for citação de aluno, converte o array de nomes para uma string formatada para visualização
-            payload[key] = value.map(name => `- ${name}`).join('\n');
-        } else if (question.tipo === 'multipla' && Array.isArray(value)) {
-            // Se for múltipla escolha (multi-seleção), une com vírgula para visualização
-            payload[key] = value.join(', ');
-        } else {
-            payload[key] = value;
-        }
-    }
-    
-    // AlunoID é null (ou undefined) pois o form é da turma
-    addResposta(selectedForm.id, fillTurmaId, null, payload);
-    setFillOpen(false);
-    setFill({});
-    setFillTurmaId("");
-    alert("Resposta registrada com sucesso!");
+  const handleVisualizar = (form) => {
+      setFormPreview(form);
+      setPreviewOpen(true);
   };
 
-
-  // Componente de preenchimento (Modal)
   return (
-    <div className="space-y-4">
-      <Card title="Novo formulário" subtitle="Construa perguntas personalizadas.">
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm">Título</label>
-              <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-sm">Descrição</label>
-              <Textarea rows={2} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
-            </div>
-            
-            <div className="flex flex-wrap gap-2 items-center">
-               <span className="text-xs font-semibold text-gray-500 uppercase mr-2">Adicionar:</span>
-              <Button className="bg-white border text-xs" onClick={() => addPergunta("texto")}>+ Curto</Button>
-              <Button className="bg-white border text-xs" onClick={() => addPergunta("texto_longo")}>+ Longo</Button>
-              <Button className="bg-white border text-xs" onClick={() => addPergunta("multipla")}>+ Múltipla</Button>
-              <Button className="bg-white border text-xs" onClick={() => addPergunta("escala")}>+ Escala</Button>
-            </div>
-
-            <div className="space-y-3 border-t pt-3">
-              {perguntas.map((p) => (
-                <PerguntaEditor
-                  key={p.id}
-                  p={p}
-                  onChange={(novo) => setPerguntas((prev) => prev.map((x) => (x.id === p.id ? novo : x)))}
-                  onRemove={() => setPerguntas((prev) => prev.filter((x) => x.id !== p.id))}
-                />
-              ))}
-              {perguntas.length === 0 && (
-                <div className="text-sm text-gray-500 italic py-4 text-center border-2 border-dashed rounded-xl">
-                  Nenhuma pergunta.<br/>Use o modelo oficial abaixo.
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2 border-t pt-3">
-              <Button className="bg-black text-white" onClick={salvarFormulario}>Salvar</Button>
-              <Button className="bg-blue-600 text-white" onClick={gerarModeloPadrao}>Carregar Modelo Oficial</Button>
-              <div className="flex gap-2 ml-auto">
-                <Button className="bg-white border" onClick={exportar}>Backup</Button>
-                <label className="bg-white border px-4 py-2 rounded-2xl shadow cursor-pointer text-sm flex items-center hover:bg-gray-50">
-                    Importar <input type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importar(e.target.files[0])} />
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <h4 className="font-medium">Formulários salvos</h4>
-            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-              {forms.map((f) => (
-                <div key={f.id} className="border rounded-xl p-3 bg-gray-50">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="font-medium">{f.titulo}</div>
-                      <div className="text-xs text-gray-500">{f.perguntas.length} pergunta(s)</div>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button className="bg-white border text-xs px-2" onClick={() => { setTitulo(f.titulo); setDescricao(f.descricao || ""); setPerguntas(f.perguntas); }}>Editar</Button>
-                      <Button className="bg-red-100 text-red-700 border border-red-200 text-xs px-2" onClick={() => handleExcluirForm(f.id)}>Excluir</Button>
-                    </div>
-                  </div>
-                  <div className="mt-2">
-                    <Button className="bg-black text-white w-full text-sm" onClick={() => { setFillFormId(f.id); setFillOpen(true); }}>Preencher este formulário</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+    <div className="space-y-6 p-4">
+      
+      {/* --- ÁREA DE EDIÇÃO (TOPO) --- */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">{editandoId ? "✏️ Editando Modelo" : "📝 Criar Novo Modelo"}</h2>
+            <button onClick={gerarModeloPadrao} className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded border border-blue-200 hover:bg-blue-200">
+                📄 Carregar Modelo Oficial
+            </button>
         </div>
-      </Card>
+        
+        <div className="space-y-4 mb-6">
+            <input className="w-full p-2 border rounded font-bold text-lg" value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Título do Formulário" />
+            <textarea className="w-full p-2 border rounded" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Descrição" rows={2} />
+        </div>
 
-      <Card title="Respostas registradas" subtitle={`${respostas.length} resposta(s)`}>
-        <div className="space-y-3">
-          {respostas.length === 0 && <div className="text-sm text-gray-500">Nenhuma resposta.</div>}
-          {respostas.map((r) => {
-            const form = forms.find((f) => f.id === r.formId);
-            const turma = turmas.find((t) => t.id === r.turmaId);
-            return (
-              <div key={r.id} className="border rounded-xl p-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    <strong>{form?.titulo || "Formulário"}</strong> • {turma?.nome || "Turma"}
-                    <span className="ml-2 text-xs"><Tag>{new Date(r.data).toLocaleString()}</Tag></span>
-                  </div>
-                  <Button className="bg-white border text-xs" onClick={() => { const blob = new Blob([JSON.stringify(r, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `resposta_${r.id}.json`; a.click(); URL.revokeObjectURL(url); }}>Baixar JSON</Button>
-                </div>
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-sm text-blue-600 font-medium">Ver respostas</summary>
-                  <div className="mt-2 grid gap-2 pl-2 border-l-2 border-blue-100">
-                    {Object.entries(r.payload).map(([qid, valor]) => {
-                      const p = form?.perguntas.find((pp) => pp.id === qid);
-                      return (
-                        <div key={qid} className="text-sm">
-                          <div className="font-medium text-gray-800">{p?.enunciado || qid}</div>
-                          <div className="text-gray-600 whitespace-pre-wrap">{String(valor)}</div>
+        {/* BARRA DE FERRAMENTAS */}
+        <div className="flex gap-2 mb-6 bg-gray-50 p-3 rounded border">
+            <span className="text-sm font-bold pt-1 uppercase text-gray-500 mr-2">Adicionar:</span>
+            <button onClick={() => addPergunta("texto")} className="px-3 py-1 bg-white border rounded hover:bg-gray-100 shadow-sm">+ Curto</button>
+            <button onClick={() => addPergunta("texto_longo")} className="px-3 py-1 bg-white border rounded hover:bg-gray-100 shadow-sm">+ Longo</button>
+            <button onClick={() => addPergunta("multipla")} className="px-3 py-1 bg-white border rounded hover:bg-gray-100 shadow-sm">+ Múltipla</button>
+        </div>
+
+        {/* LISTA DE PERGUNTAS */}
+        <div className="space-y-6">
+            {perguntas.length === 0 && <p className="text-center text-gray-400 py-4">Nenhuma pergunta adicionada.</p>}
+            
+            {perguntas.map((p, index) => (
+                <div key={p.id} className="bg-white p-4 rounded border border-gray-300 shadow-sm relative group hover:border-blue-400 transition">
+                    <span className="absolute left-[-25px] top-2 font-bold text-gray-400">{index + 1}.</span>
+                    
+                    {/* Cabeçalho */}
+                    <div className="flex justify-between items-start mb-3 gap-4">
+                        <div className="flex-1">
+                            <label className="text-xs font-bold text-gray-500 uppercase">Enunciado</label>
+                            <input 
+                                className="w-full border-b border-gray-300 p-1 focus:border-black outline-none font-medium"
+                                value={p.enunciado}
+                                onChange={(e) => updatePergunta(p.id, "enunciado", e.target.value)}
+                                placeholder="Digite a pergunta..."
+                            />
                         </div>
-                      );
-                    })}
-                  </div>
-                </details>
-                <div className="mt-2 flex justify-end">
-                  <Button className="bg-red-600 text-white text-xs" onClick={() => { if(window.confirm("Excluir?")) removeResposta(r.id); }}>Excluir</Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-
-      {/* MODAL DE PREENCHIMENTO */}
-      {fillOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-4xl max-h-[90vh] flex flex-col">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold">Preencher: {selectedForm?.titulo}</h3>
-                <p className="text-sm text-gray-500">{selectedForm?.descricao}</p>
-              </div>
-              <button className="text-gray-500 hover:text-black" onClick={() => setFillOpen(false)}>✕ Fechar</button>
-            </div>
-            
-            <div className="mb-4">
-              <label className="text-sm font-medium">Selecione a Turma</label>
-              <select
-                className="w-full rounded-xl border px-3 py-2 bg-gray-50"
-                value={fillTurmaId}
-                onChange={(e) => setFillTurmaId(e.target.value)}
-              >
-                <option value="">Selecione...</option>
-                {turmas.map((t) => <option key={t.id} value={t.id}>{t.nome} - {t.ano}</option>)}
-              </select>
-            </div>
-
-            <div className="flex-1 overflow-y-auto pr-2 space-y-6">
-              {fillTurmaId && (selectedForm?.perguntas || []).map((p) => (
-                <div key={p.id} className="border rounded-xl p-4 hover:border-gray-400 transition bg-white">
-                  <div className="text-sm font-bold mb-2 text-gray-800">{p.enunciado}</div>
-                  
-                  {/* RESPOSTA CURTA */}
-                  {p.tipo === "texto" && (
-                    <Input value={fill[p.id] || ""} onChange={(e) => setFill({ ...fill, [p.id]: e.target.value })} />
-                  )}
-                  
-                  {/* RESPOSTA LONGA / SELEÇÃO DE ALUNO */}
-                  {p.tipo === "texto_longo" && (
-                    isStudentCitingQuestion(p.enunciado) ? (
-                      // WIDGET DE SELEÇÃO MÚLTIPLA DE ALUNO (NOVO)
-                      <div className="bg-gray-50 p-3 rounded-xl border max-h-64 overflow-y-auto">
-                          <div className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-                              Selecione os alunos:
-                          </div>
-                          <div className="space-y-1">
-                              {alunosDaTurma.length === 0 && <div className="text-xs text-gray-400">Nenhum aluno nesta turma.</div>}
-                              {alunosDaTurma.map(aluno => {
-                                  // fill[p.id] será um array de nomes: ['Aluno A', 'Aluno B']
-                                  const isSelected = Array.isArray(fill[p.id]) && fill[p.id].includes(aluno.nome);
-                                  
-                                  const toggleAlunoSelection = (nomeAluno) => {
-                                      const current = Array.isArray(fill[p.id]) ? fill[p.id] : [];
-                                      const newSelection = current.includes(nomeAluno)
-                                          ? current.filter(n => n !== nomeAluno)
-                                          : [...current, nomeAluno];
-                                      setFill({ ...fill, [p.id]: newSelection });
-                                  };
-
-                                  return (
-                                      <div 
-                                          key={aluno.id} 
-                                          className={`flex items-center gap-2 p-1 rounded cursor-pointer transition ${isSelected ? 'bg-blue-100 border border-blue-400' : 'hover:bg-gray-200'}`}
-                                          onClick={() => toggleAlunoSelection(aluno.nome)} // Clica na linha para selecionar/desmarcar
-                                      >
-                                          <button 
-                                              onClick={(e) => { e.stopPropagation(); setZoomFoto(aluno.foto); }}
-                                              className="w-8 h-8 rounded-full bg-gray-300 overflow-hidden flex-shrink-0 border hover:border-blue-500 transition"
-                                              title="Clique para ampliar foto"
-                                          >
-                                              {aluno.foto ? <img src={aluno.foto} className="w-full h-full object-cover"/> : <span className="text-xs">📷</span>}
-                                          </button>
-                                          <div className="text-sm flex-1 truncate">{aluno.nome}</div>
-                                          <input type="checkbox" checked={isSelected} readOnly className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
-                                      </div>
-                                  );
-                              })}
-                          </div>
-                          <p className="mt-2 text-xs text-gray-500 italic">
-                              {/* Esta visualização é útil para saber o que está selecionado */}
-                              Total de selecionados: {Array.isArray(fill[p.id]) ? fill[p.id].length : 0}
-                          </p>
-                      </div>
-                    ) : (
-                      // TEXTAREA NORMAL
-                      <Textarea
-                          rows={3}
-                          value={fill[p.id] || ""}
-                          onChange={(e) => setFill({ ...fill, [p.id]: e.target.value })}
-                          placeholder="Descreva detalhadamente..."
-                      />
-                    )
-                  )}
-                  
-                  {/* MÚLTIPLA ESCOLHA (MULTI-SELEÇÃO AGORA) */}
-                  {p.tipo === "multipla" && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {(p.opcoes || []).map((op) => {
-                        // fill[p.id] é um array de strings
-                        const isSelected = Array.isArray(fill[p.id]) && fill[p.id].includes(op);
-
-                        const toggleSelection = (e) => {
-                          const current = Array.isArray(fill[p.id]) ? fill[p.id] : [];
-                          const newSelection = e.target.checked
-                              ? [...current, op]
-                              : current.filter(item => item !== op);
-                          setFill({ ...fill, [p.id]: newSelection });
-                        };
-
-                        return (
-                          <label key={op} className="flex items-center gap-3 text-sm p-2 rounded hover:bg-gray-50 cursor-pointer border border-transparent hover:border-gray-200">
-                            <input type="checkbox" name={p.id} checked={isSelected} onChange={toggleSelection} className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black" /> {op}
-                          </label>
-                        );
-                      })}
+                        <button onClick={() => removePergunta(p.id)} className="text-red-500 hover:text-red-700 text-xs font-bold border border-red-100 px-2 py-1 rounded bg-red-50">EXCLUIR</button>
                     </div>
-                  )}
-                  
-                  {/* ESCALA */}
-                  {p.tipo === "escala" && (
-                    <div className="flex items-center gap-2 justify-between max-w-md">
-                      <span className="text-xs text-gray-500">Mín ({p.min})</span>
+
+                    {/* Opções (Múltipla) */}
+                    {p.tipo === "multipla" && (
+                        <div className="mb-3 bg-yellow-50 p-2 rounded border border-yellow-100">
+                            <label className="text-xs font-bold text-yellow-800">Opções (separadas por vírgula)</label>
+                            <input 
+                                className="w-full border p-1 rounded bg-white text-sm"
+                                value={(p.opcoes || []).join(", ")}
+                                onChange={(e) => updatePergunta(p.id, "opcoes", e.target.value.split(','))}
+                            />
+                        </div>
+                    )}
+
+                    {/* SELETOR DE CARGOS */}
+                    <div className="border-t pt-2 mt-2">
+                        <div className="text-xs font-bold text-blue-800 uppercase mb-2 flex items-center gap-2">
+                            🔒 Quem responde? <span className="text-gray-400 font-normal normal-case">(Selecione os cargos)</span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-blue-50 p-3 rounded">
+                            {CARGOS_SISTEMA.map(cargo => {
+                                const checked = (p.perfis || []).includes(cargo);
+                                return (
+                                    <label key={cargo} className={`flex items-center gap-2 text-[11px] cursor-pointer select-none ${checked ? 'font-bold text-blue-900' : 'text-gray-500 opacity-70'}`}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={checked} 
+                                            onChange={() => toggleCargoPergunta(p.id, cargo)}
+                                            className="accent-blue-600"
+                                        />
+                                        {cargo}
+                                    </label>
+                                )
+                            })}
+                        </div>
+                        {(p.perfis || []).length === 0 && <p className="text-xs text-red-600 mt-1 font-bold">⚠️ Atenção: Ninguém verá esta pergunta.</p>}
+                    </div>
+                </div>
+            ))}
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2 border-t pt-4">
+            {editandoId && (
+                <button onClick={() => { setEditandoId(null); setTitulo("Novo Modelo"); setPerguntas([]); }} className="bg-gray-200 text-gray-700 px-4 py-2 rounded">
+                    Cancelar Edição
+                </button>
+            )}
+            <button onClick={salvarFormulario} className="bg-black text-white px-6 py-2 rounded font-bold hover:bg-gray-800 shadow-lg">
+                {editandoId ? "Salvar Como Novo" : "Salvar Modelo"}
+            </button>
+        </div>
+      </div>
+
+      {/* --- LISTA DE MODELOS SALVOS (BAIXO) --- */}
+      <div className="bg-white p-6 rounded-lg shadow-md border mt-8">
+          <h3 className="font-bold text-lg mb-4 text-gray-800 border-b pb-2">Modelos Disponíveis no Banco</h3>
+          
+          {listaFormularios.length === 0 ? <p className="text-gray-500 italic">Nenhum modelo salvo.</p> : (
+            <div className="grid gap-3">
+              {listaFormularios.map(f => (
+                  <div key={f.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 border rounded hover:bg-gray-50 transition">
+                      <div className="mb-2 md:mb-0">
+                          <div className="font-bold text-blue-900 text-lg">{f.titulo}</div>
+                          <div className="text-sm text-gray-500">{f.descricao}</div>
+                          <div className="text-xs text-gray-400 mt-1">{f.perguntas.length} questões</div>
+                      </div>
+                      
                       <div className="flex gap-2">
-                        {Array.from(
-                            { length: (p.max ?? 5) - (p.min ?? 1) + 1 },
-                            (_, i) => (p.min ?? 1) + i
-                        ).map((v) => (
-                            <label key={v} className={`flex flex-col items-center justify-center w-10 h-10 rounded-full border cursor-pointer transition ${
-                                fill[p.id] === v ? "bg-black text-white border-black" : "bg-white text-gray-700 hover:bg-gray-100"
-                            }`}>
-                            <input type="radio" name={p.id} className="hidden" checked={fill[p.id] === v} onChange={() => setFill({ ...fill, [p.id]: v })} />
-                            <span className="text-sm font-medium">{v}</span>
-                            </label>
-                        ))}
+                          <button onClick={() => handleVisualizar(f)} className="px-3 py-1 bg-white border border-gray-300 rounded text-gray-600 hover:bg-gray-100 text-sm flex items-center gap-1">
+                              👁️ <span className="hidden md:inline">Visualizar</span>
+                          </button>
+                          
+                          <button onClick={() => handleEditar(f)} className="px-3 py-1 bg-blue-50 border border-blue-200 rounded text-blue-600 hover:bg-blue-100 text-sm flex items-center gap-1">
+                              ✏️ <span className="hidden md:inline">Editar</span>
+                          </button>
+                          
+                          <button onClick={() => handleExcluir(f.id)} className="px-3 py-1 bg-red-50 border border-red-200 rounded text-red-600 hover:bg-red-100 text-sm">
+                              🗑️
+                          </button>
                       </div>
-                      <span className="text-xs text-gray-500">Máx ({p.max})</span>
-                    </div>
-                  )}
-                </div>
+                  </div>
               ))}
-              {!fillTurmaId && <div className="text-center py-10 text-gray-400">Selecione uma turma acima para começar a preencher.</div>}
             </div>
+          )}
+      </div>
 
-            <div className="mt-4 pt-3 border-t flex justify-end gap-2">
-              <Button className="bg-white border" onClick={() => window.print()}>Imprimir</Button>
-              <Button className="bg-black text-white px-6" onClick={submitPreenchimento}>Enviar Resposta</Button>
+      {/* --- MODAL DE VISUALIZAÇÃO/TESTE --- */}
+      {previewOpen && formPreview && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col">
+                <div className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+                    <h3 className="font-bold text-lg">Visualizando: {formPreview.titulo}</h3>
+                    <button onClick={() => setPreviewOpen(false)} className="text-xl font-bold text-gray-500 hover:text-black">✕</button>
+                </div>
+                
+                <div className="p-6 space-y-6">
+                    {formPreview.perguntas.map((p, idx) => (
+                        <div key={idx} className="border-b pb-4">
+                            <p className="font-bold text-gray-800 mb-1">{idx + 1}. {p.enunciado}</p>
+                            <p className="text-xs text-blue-600 mb-2">
+                                🔒 Visível para: {(p.perfis || []).join(", ")}
+                            </p>
+                            
+                            {p.tipo === 'texto' && <input disabled className="w-full border p-2 rounded bg-gray-100" placeholder="Resposta..." />}
+                            {p.tipo === 'texto_longo' && <textarea disabled className="w-full border p-2 rounded bg-gray-100" rows={2} placeholder="Resposta longa..." />}
+                            {p.tipo === 'multipla' && (
+                                <div className="flex gap-4">
+                                    {p.opcoes?.map(op => (
+                                        <div key={op} className="flex items-center gap-1">
+                                            <input type="checkbox" disabled /> 
+                                            <span className="text-gray-500">{op}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+                <div className="p-4 border-t bg-gray-50 text-right rounded-b-xl">
+                    <button onClick={() => setPreviewOpen(false)} className="bg-black text-white px-4 py-2 rounded">Fechar</button>
+                </div>
             </div>
-          </div>
         </div>
       )}
 
-      {/* MODAL DE ZOOM DA FOTO */}
-      {zoomFoto && (
-        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" onClick={() => setZoomFoto(null)}>
-          <img src={zoomFoto} alt="Zoom" className="max-w-full max-h-[90vh] rounded-lg shadow-2xl" />
-          <button className="absolute top-4 right-4 text-white text-xl bg-black/50 w-10 h-10 rounded-full">✕</button>
-        </div>
-      )}
     </div>
   );
 }
