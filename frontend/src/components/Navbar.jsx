@@ -19,20 +19,31 @@ export function Navbar() {
             </div>
 
             <div className="navbar-links">
-                {/* 1. TELA DE TURMAS (Home) */}
-                <Link to="/" className="nav-link">Turmas</Link>
+                {/* --- LINKS PÚBLICOS (Para todos os usuários logados) --- */}
+                
+                {/* Agora a Home é o Painel Visual */}
+                <Link to="/" className="nav-link">Dashboard</Link>
 
-                {/* 2. TELA DE ALUNOS (Sprint anterior) */}
+                {/* Lista de Turmas separada */}
+                <Link to="/turmas" className="nav-link">Turmas</Link>
+
+                {/* Telas das Sprints Anteriores */}
                 <Link to="/alunos" className="nav-link">Alunos</Link>
-
-                {/* 3. TELA DE COMPARAÇÃO (Sprint anterior) */}
                 <Link to="/comparacao" className="nav-link">Relatórios</Link>
 
-                {/* 4. BOTÃO EXCLUSIVO DE ADMIN (Novo Usuário) */}
+                {/* --- ÁREA EXCLUSIVA DE COORDENADOR (ADMIN) --- */}
                 {user && user.perfil === 'coordenador' && (
-                    <Link to="/cadastro-usuario" className="nav-link destaque">
-                        + Novo Usuário
-                    </Link>
+                    <>
+                        {/* Botão para criar/editar formulários */}
+                        <Link to="/criar-formulario" className="nav-link">
+                            Modelos de Form
+                        </Link>
+
+                        {/* Botão de destaque para criar usuário */}
+                        <Link to="/cadastro-usuario" className="nav-link destaque">
+                            + Novo Usuário
+                        </Link>
+                    </>
                 )}
             </div>
 
