@@ -35,7 +35,7 @@ def init_db_automatico():
         # 1. Tabela Usuario
         cursor.execute('CREATE TABLE IF NOT EXISTS Usuario (idusuario INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, login TEXT UNIQUE, senha_hash TEXT, perfil TEXT)')
         
-        # 2. Tabela Formulario (COM A COLUNA PERGUNTAS_JSON GARANTIDA)
+        # 2. Tabela Formulario
         cursor.execute('CREATE TABLE IF NOT EXISTS Formulario (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, descricao TEXT, perguntas_json TEXT, criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
         
         # 3. Tabela Resposta
@@ -50,13 +50,12 @@ def init_db_automatico():
         conn.commit()
         print("--- ✅ TABELAS PRONTAS E VERIFICADAS ---")
 
-# --- ROTAS ---
+# --- ROTAS DE FORMULÁRIOS ---
 @app.route('/formularios', methods=['GET', 'POST'])
 def formularios():
     conn = get_db()
     if request.method == 'POST':
         d = request.json
-        # Garante que perguntas_json seja salvo como STRING JSON
         conn.execute('INSERT INTO Formulario (titulo, descricao, perguntas_json) VALUES (?, ?, ?)', 
                      (d.get('titulo'), d.get('descricao'), json.dumps(d.get('perguntas'))))
         conn.commit()
@@ -67,7 +66,6 @@ def formularios():
         lista = []
         for r in rows:
             try:
-                # Tenta converter o JSON. Se der erro no banco, retorna lista vazia pra não travar.
                 perguntas = json.loads(r['perguntas_json'])
             except:
                 perguntas = []
@@ -85,6 +83,38 @@ def delete_form(id):
     conn.close()
     return jsonify({'msg': 'Deletado'}), 200
 
+# --- ROTAS DE USUÁRIOS (ESTAVA FALTANDO ISTO AQUI!) ---
+@app.route('/usuarios', methods=['GET', 'POST'])
+def usuarios():
+    conn = get_db()
+    if request.method == 'POST':
+        # Criar Usuário
+        d = request.json
+        try:
+            conn.execute('INSERT INTO Usuario (nome, login, senha_hash, perfil) VALUES (?, ?, ?, ?)',
+                        (d['nome'], d['login'], generate_password_hash(d['senha']), d['perfil']))
+            conn.commit()
+            res = jsonify({'msg': 'Criado'}), 201
+        except sqlite3.IntegrityError:
+            res = jsonify({'erro': 'Login já existe'}), 409
+        except Exception as e:
+            res = jsonify({'erro': str(e)}), 400
+    else:
+        # Listar Usuários
+        rows = conn.execute('SELECT idusuario, nome, login, perfil FROM Usuario').fetchall()
+        res = jsonify([dict(r) for r in rows]), 200
+    conn.close()
+    return res
+
+@app.route('/usuarios/<int:id>', methods=['DELETE'])
+def delete_usuario(id):
+    conn = get_db()
+    conn.execute('DELETE FROM Usuario WHERE idusuario = ?', (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'msg': 'Deletado'}), 200
+
+# --- ROTAS DE LOGIN E RESPOSTAS ---
 @app.route('/login', methods=['POST'])
 def login():
     d = request.json
@@ -110,15 +140,8 @@ def respostas():
         conn.close()
         return jsonify([{'id':r['id'], 'form_titulo':r['form_titulo'], 'turma_id':r['turma_id'], 'respostas':json.loads(r['payload_json'])} for r in rows]), 200
 
-# --- INICIALIZAÇÃO ---
 if __name__ == '__main__':
-    # APAGA O BANCO VELHO PRA GARANTIR (SO RODANDO LOCALMENTE)
-    if os.path.exists(DATABASE):
-        os.remove(DATABASE)
-        print("--- 🗑️ BANCO ANTIGO DELETADO AUTOMATICAMENTE ---")
-    
-    # CRIA O NOVO
-    init_db_automatico()
-    
-    print("--- 🚀 SERVIDOR RODANDO AGORA ---")
+    # Não vamos apagar o banco dessa vez, só rodar
+    init_db_automatico() 
+    print("--- 🚀 SERVIDOR COMPLETO RODANDO ---")
     app.run(debug=True, port=5000)
