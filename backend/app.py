@@ -125,6 +125,7 @@ def login():
         return jsonify({'usuario': {'nome': u['nome'], 'perfil': u['perfil'], 'login': u['login']}}), 200
     return jsonify({'erro': 'Login falhou'}), 401
 
+# --- SUBSTITUA APENAS A ROTA DE RESPOSTAS ---
 @app.route('/respostas', methods=['GET', 'POST'])
 def respostas():
     conn = get_db()
@@ -136,9 +137,22 @@ def respostas():
         conn.close()
         return jsonify({'msg': 'Recebido'}), 201
     else:
+        # Busca respostas e o título do formulário
         rows = conn.execute('SELECT r.*, f.titulo as form_titulo FROM Resposta r JOIN Formulario f ON r.formulario_id = f.id').fetchall()
         conn.close()
-        return jsonify([{'id':r['id'], 'form_titulo':r['form_titulo'], 'turma_id':r['turma_id'], 'respostas':json.loads(r['payload_json'])} for r in rows]), 200
+        
+        # --- AQUI ESTAVA O ERRO: FALTAVA O 'formulario_id' ---
+        lista_respostas = []
+        for r in rows:
+            lista_respostas.append({
+                'id': r['id'],
+                'formulario_id': r['formulario_id'],  # <--- LINHA ADICIONADA (CRUCIAL!)
+                'form_titulo': r['form_titulo'],
+                'turma_id': r['turma_id'],
+                'respostas': json.loads(r['payload_json'])
+            })
+            
+        return jsonify(lista_respostas), 200
 
 if __name__ == '__main__':
     # Não vamos apagar o banco dessa vez, só rodar
