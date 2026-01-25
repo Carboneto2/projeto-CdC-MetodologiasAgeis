@@ -3,22 +3,18 @@ import { useTurmas } from "../hooks/useTurmas";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import Input from "../components/Input";
-import { readLS, LS_KEYS } from "../lib/storage";
 
 export default function TurmasView() {
   const { turmas, add, update, remove } = useTurmas();
-
-  // 🔐 Perfil do usuário
-  const user = readLS(LS_KEYS.AUTH, null);
-  const isCoordenador = user?.perfil === "Coordenador";
-
+  
   // Estado para controlar a edição
   const [editId, setEditId] = useState(null);
-
+  
   const [nome, setNome] = useState("");
   const [ano, setAno] = useState("");
   const [turno, setTurno] = useState("Manhã");
 
+  // Prepara o formulário para edição ao clicar no botão Editar
   const handleEditClick = (t) => {
     setEditId(t.id);
     setNome(t.nome);
@@ -26,6 +22,7 @@ export default function TurmasView() {
     setTurno(t.turno);
   };
 
+  // Cancela a edição
   const handleCancelEdit = () => {
     setEditId(null);
     setNome("");
@@ -38,12 +35,15 @@ export default function TurmasView() {
     if (!nome.trim()) return;
 
     if (editId) {
+      // Atualizando turma existente
       update(editId, { nome, ano, turno });
       alert("Turma atualizada com sucesso!");
       handleCancelEdit();
     } else {
+      // Criando nova turma
       add({ nome: nome.trim(), ano: ano || new Date().getFullYear(), turno });
       alert("Cadastro realizado com sucesso!");
+      // Limpa campos
       setNome("");
       setAno("");
     }
@@ -57,57 +57,50 @@ export default function TurmasView() {
 
   return (
     <div className="grid md:grid-cols-2 gap-4">
-      {/* 🔒 FORMULÁRIO APENAS PARA COORDENADOR */}
-      {isCoordenador && (
-        <Card title={editId ? "Editar turma" : "Cadastrar turma"}>
-          <form onSubmit={handleSubmit} className="space-y-3">
+      <Card title={editId ? "Editar turma" : "Cadastrar turma"}>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="text-sm">Nome da turma</label>
+            <Input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex.: 2º ano A"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm">Nome da turma</label>
+              <label className="text-sm">Ano</label>
               <Input
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                placeholder="Ex.: 2º ano A"
+                value={ano}
+                onChange={(e) => setAno(e.target.value)}
+                placeholder="2025"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm">Ano</label>
-                <Input
-                  value={ano}
-                  onChange={(e) => setAno(e.target.value)}
-                  placeholder="2025"
-                />
-              </div>
-              <div>
-                <label className="text-sm">Turno</label>
-                <select
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2"
-                  value={turno}
-                  onChange={(e) => setTurno(e.target.value)}
-                >
-                  <option>Manhã</option>
-                  <option>Tarde</option>
-                  <option>Noite</option>
-                </select>
-              </div>
+            <div>
+              <label className="text-sm">Turno</label>
+              <select
+                className="w-full rounded-xl border border-gray-300 px-3 py-2"
+                value={turno}
+                onChange={(e) => setTurno(e.target.value)}
+              >
+                <option>Manhã</option>
+                <option>Tarde</option>
+                <option>Noite</option>
+              </select>
             </div>
-            <div className="flex gap-2">
-              <Button className="bg-black text-white" type="submit">
-                {editId ? "Salvar Alterações" : "Adicionar"}
+          </div>
+          <div className="flex gap-2">
+            <Button className="bg-black text-white" type="submit">
+              {editId ? "Salvar Alterações" : "Adicionar"}
+            </Button>
+            {editId && (
+              <Button type="button" onClick={handleCancelEdit} className="bg-gray-200">
+                Cancelar
               </Button>
-              {editId && (
-                <Button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  className="bg-gray-200"
-                >
-                  Cancelar
-                </Button>
-              )}
-            </div>
-          </form>
-        </Card>
-      )}
+            )}
+          </div>
+        </form>
+      </Card>
 
       <Card title="Turmas cadastradas" subtitle={`${turmas.length} turma(s)`}>
         <div className="space-y-3">
@@ -127,24 +120,20 @@ export default function TurmasView() {
                   Ano {t.ano} • {t.turno}
                 </div>
               </div>
-
-              {/* 🔒 BOTÕES SÓ PARA COORDENADOR */}
-              {isCoordenador && (
-                <div className="flex gap-2">
-                  <Button
-                    className="bg-white border"
-                    onClick={() => handleEditClick(t)}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    className="bg-red-600 text-white"
-                    onClick={() => handleExcluir(t.id)}
-                  >
-                    Excluir
-                  </Button>
-                </div>
-              )}
+              <div className="flex gap-2">
+                <Button
+                  className="bg-white border"
+                  onClick={() => handleEditClick(t)}
+                >
+                  Editar
+                </Button>
+                <Button
+                  className="bg-red-600 text-white"
+                  onClick={() => handleExcluir(t.id)}
+                >
+                  Excluir
+                </Button>
+              </div>
             </div>
           ))}
         </div>

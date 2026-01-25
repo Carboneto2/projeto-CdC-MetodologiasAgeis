@@ -5,13 +5,7 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {
-      colors: {
-        ifverde: "#1B5E20",
-        ifverdeclaro: "#2E7D32",
-        ifvermelho: "#C62828",
-      },
-    },
+    extend: {},
   },
   plugins: [],
-};
+}

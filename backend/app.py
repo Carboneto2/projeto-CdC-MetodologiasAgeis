@@ -4,27 +4,27 @@ import json
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-CORS(app)
+CORS(app) # Permite que o Frontend (React) converse com esse Backend
 
 # --- CONFIGURAÇÕES ---
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = 'uploads' # Pasta onde as fotos serão salvas
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER, exist_ok=True) # Cria a pasta 'uploads' se ela não existir
 
 DATABASE = 'conselho.db'
 
 # --- BANCO DE DADOS ---
 def get_db():
     conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
+    conn.row_factory = sqlite3.Row # Permite acessar as colunas pelo nome
     return conn
 
 def init_db():
+    """Cria as tabelas se elas não existirem"""
     with app.app_context():
         db = get_db()
         with open('flaskr/schema.sql', mode='r', encoding='utf-8') as f:
@@ -32,168 +32,84 @@ def init_db():
         db.commit()
 
 def allowed_file(filename):
+    """Verifica se a extensão da imagem é válida"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# --- USUÁRIOS ---
-def criar_usuario(login, senha, perfil):
-    conn = get_db()
-    senha_hash = generate_password_hash(senha)
-    conn.execute(
-        'INSERT INTO Usuarios (login, senha_hash, perfil) VALUES (?, ?, ?)',
-        (login, senha_hash, perfil)
-    )
-    conn.commit()
-    conn.close()
 
 # ==========================================
 #              ROTAS DA API
 # ==========================================
 
-# --- LOGIN ---
-@app.route('/api/login', methods=['POST'])
-def login():
-    data = request.json
-    login = data.get('login')
-    senha = data.get('senha')
-
-    conn = get_db()
-    usuario = conn.execute(
-        'SELECT * FROM Usuarios WHERE login = ?',
-        (login,)
-    ).fetchone()
-    conn.close()
-
-    if usuario and check_password_hash(usuario['senha_hash'], senha):
-        return jsonify({
-            "message": "Login realizado com sucesso",
-            "usuario": {
-                "id": usuario["idusuario"],
-                "login": usuario["login"],
-                "perfil": usuario["perfil"]
-            }
-        }), 200
-
-    return jsonify({"error": "Login ou senha inválidos"}), 401
-
-
-# --- CRIAR USUÁRIOS (3.3) ---
-@app.route('/api/usuarios', methods=['POST'])
-def criar_usuario_api():
-    data = request.json
-
-    login = data.get('login')
-    senha = data.get('senha')
-    perfil = data.get('perfil')
-
-    if not login or not senha or not perfil:
-        return jsonify({"error": "Dados incompletos"}), 400
-
-    if perfil not in ["Professor", "Coordenador"]:
-        return jsonify({"error": "Perfil inválido"}), 400
-
-    senha_hash = generate_password_hash(senha)
-
-    try:
-        conn = get_db()
-        conn.execute(
-            'INSERT INTO Usuarios (login, senha_hash, perfil) VALUES (?, ?, ?)',
-            (login, senha_hash, perfil)
-        )
-        conn.commit()
-        conn.close()
-        return jsonify({"message": "Usuário criado com sucesso"}), 201
-    except sqlite3.IntegrityError:
-        return jsonify({"error": "Usuário já existe"}), 409
-
-
-# --- LISTAR USUÁRIOS (3.3) ---
-@app.route('/api/usuarios', methods=['GET'])
-def listar_usuarios():
-    conn = get_db()
-    usuarios_db = conn.execute(
-        'SELECT idusuario, login, perfil FROM Usuarios'
-    ).fetchall()
-    conn.close()
-
-    lista = []
-    for u in usuarios_db:
-        lista.append({
-            "id": u["idusuario"],
-            "login": u["login"],
-            "perfil": u["perfil"]
-        })
-
-    return jsonify(lista), 200
-
-
-# --- TURMAS ---
+# --- 1. Rotas de TURMAS ---
 @app.route('/api/turmas', methods=['GET'])
 def get_turmas():
     conn = get_db()
     turmas_db = conn.execute('SELECT * FROM Turma').fetchall()
     conn.close()
-
-    return jsonify([
-        {
+    
+    lista_turmas = []
+    for t in turmas_db:
+        lista_turmas.append({
             "id": t["idturma"],
             "nome": t["nometurma"],
             "ano": t["ano"],
             "turno": t["turno"]
-        } for t in turmas_db
-    ])
+        })
+    return jsonify(lista_turmas)
 
 @app.route('/api/turmas', methods=['POST'])
 def add_turma():
     data = request.json
     conn = get_db()
-    conn.execute(
-        'INSERT INTO Turma (nometurma, ano, turno) VALUES (?, ?, ?)',
-        (data['nome'], data['ano'], data['turno'])
-    )
+    conn.execute('INSERT INTO Turma (nometurma, ano, turno) VALUES (?, ?, ?)',
+                 (data['nome'], data['ano'], data['turno']))
     conn.commit()
     conn.close()
     return jsonify({"message": "Turma criada com sucesso"}), 201
 
-
-# --- ALUNOS ---
+# --- 2. Rotas de ALUNOS (com Foto) ---
 @app.route('/api/alunos', methods=['GET'])
 def get_alunos():
     conn = get_db()
     alunos_db = conn.execute('SELECT * FROM Aluno').fetchall()
     conn.close()
-
-    lista = []
+    
+    lista_alunos = []
     for a in alunos_db:
-        foto_url = f"http://127.0.0.1:5000/uploads/{a['foto']}" if a['foto'] else None
-        lista.append({
+        foto_url = None
+        if a['foto']:
+            foto_url = f"http://127.0.0.1:5000/uploads/{a['foto']}"
+
+        lista_alunos.append({
             "id": a["idaluno"],
             "nome": a["nomealuno"],
             "matricula": a["matricula"],
             "turmaId": a["idturma"],
+            "foto": a["foto"],
             "foto_url": foto_url
         })
-    return jsonify(lista)
+    return jsonify(lista_alunos)
 
 @app.route('/api/alunos', methods=['POST'])
 def add_aluno():
     nome = request.form.get('nome')
     matricula = request.form.get('matricula')
     turma_id = request.form.get('turmaId')
-
+    
     foto_filename = None
+    
+    # Upload da Imagem
     if 'foto' in request.files:
         file = request.files['foto']
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             import uuid
-            foto_filename = f"{uuid.uuid4().hex}_{filename}"
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], foto_filename))
+            unique_name = f"{uuid.uuid4().hex}_{filename}"
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_name))
+            foto_filename = unique_name
 
     conn = get_db()
-    conn.execute(
-        'INSERT INTO Aluno (nomealuno, matricula, idturma, foto) VALUES (?, ?, ?, ?)',
-        (nome, matricula, turma_id, foto_filename)
-    )
+    conn.execute('INSERT INTO Aluno (nomealuno, matricula, idturma, foto) VALUES (?, ?, ?, ?)',
+                 (nome, matricula, turma_id, foto_filename))
     conn.commit()
     conn.close()
     return jsonify({"message": "Aluno criado com sucesso"}), 201
@@ -202,22 +118,50 @@ def add_aluno():
 def download_file(name):
     return send_from_directory(app.config['UPLOAD_FOLDER'], name)
 
+# --- 3. Dashboard (Resumo) ---
+@app.route('/api/dashboard/resumo', methods=['GET'])
+def get_resumo():
+    conn = get_db()
+    total_turmas = conn.execute('SELECT COUNT(*) as c FROM Turma').fetchone()['c']
+    total_alunos = conn.execute('SELECT COUNT(*) as c FROM Aluno').fetchone()['c']
+    
+    por_turno = conn.execute('''
+        SELECT t.turno, COUNT(a.idaluno) as count 
+        FROM Turma t 
+        LEFT JOIN Aluno a ON t.idturma = a.idturma 
+        GROUP BY t.turno
+    ''').fetchall()
+    
+    conn.close()
+    
+    return jsonify({
+        "total_turmas": total_turmas,
+        "total_alunos": total_alunos,
+        "alunos_por_turno": [dict(row) for row in por_turno]
+    })
 
-# --- FORMULÁRIOS ---
+# --- 4. Rotas de FORMULÁRIOS (Conselho de Classe) ---
 @app.route('/api/forms', methods=['GET'])
 def get_forms():
     conn = get_db()
     forms_db = conn.execute('SELECT * FROM Formulario').fetchall()
     conn.close()
-
+    
     lista = []
     for f in forms_db:
-        perguntas = json.loads(f["perguntas"]) if f["perguntas"] else []
+        # Convertemos o texto JSON de volta para Objeto/Lista Python
+        perguntas_list = []
+        if f["perguntas"]:
+            try:
+                perguntas_list = json.loads(f["perguntas"])
+            except:
+                perguntas_list = []
+
         lista.append({
             "id": f["idformulario"],
             "titulo": f["titulo"],
             "descricao": f["descricao"],
-            "perguntas": perguntas
+            "perguntas": perguntas_list
         })
     return jsonify(lista)
 
@@ -225,10 +169,11 @@ def get_forms():
 def add_form():
     data = request.json
     conn = get_db()
-    conn.execute(
-        'INSERT INTO Formulario (titulo, descricao, perguntas) VALUES (?, ?, ?)',
-        (data['titulo'], data['descricao'], json.dumps(data['perguntas']))
-    )
+    # Salvamos a lista de perguntas como TEXTO JSON no banco
+    perguntas_json = json.dumps(data['perguntas'])
+    
+    conn.execute('INSERT INTO Formulario (titulo, descricao, perguntas) VALUES (?, ?, ?)',
+                 (data['titulo'], data['descricao'], perguntas_json))
     conn.commit()
     conn.close()
     return jsonify({"message": "Formulário salvo"}), 201
@@ -237,29 +182,106 @@ def add_form():
 def delete_form(id):
     conn = get_db()
     conn.execute('DELETE FROM Formulario WHERE idformulario = ?', (id,))
+    # Opcional: Apagar respostas órfãs também
     conn.execute('DELETE FROM Resposta WHERE idformulario = ?', (id,))
     conn.commit()
     conn.close()
     return jsonify({"message": "Formulário excluído"}), 200
 
+# --- 5. Rotas de RESPOSTAS ---
+@app.route('/api/respostas', methods=['GET'])
+def get_respostas():
+    conn = get_db()
+    respostas_db = conn.execute('SELECT * FROM Resposta').fetchall()
+    conn.close()
+    
+    lista = []
+    for r in respostas_db:
+        payload_obj = {}
+        if r["payload"]:
+            try:
+                payload_obj = json.loads(r["payload"])
+            except:
+                payload_obj = {}
 
-# --- RESPOSTAS ---
+        lista.append({
+            "id": r["idresposta"],
+            "formId": r["idformulario"],
+            "turmaId": r["idturma"],
+            "alunoId": r["idaluno"],
+            "payload": payload_obj,
+            "data": r["data_resposta"]
+        })
+    return jsonify(lista)
+
 @app.route('/api/respostas', methods=['POST'])
 def add_resposta():
     data = request.json
     conn = get_db()
-    conn.execute(
-        'INSERT INTO Resposta (idformulario, idturma, idaluno, payload) VALUES (?, ?, ?, ?)',
-        (data['formId'], data['turmaId'], data['alunoId'], json.dumps(data['payload']))
-    )
+    payload_json = json.dumps(data['payload'])
+    
+    conn.execute('INSERT INTO Resposta (idformulario, idturma, idaluno, payload) VALUES (?, ?, ?, ?)',
+                 (data['formId'], data['turmaId'], data['alunoId'], payload_json))
     conn.commit()
     conn.close()
     return jsonify({"message": "Resposta salva"}), 201
 
 
-# --- MAIN ---
+# --- 4. Relatórios e Alertas (Task 4.1) ---
+@app.route('/api/dashboard/alertas', methods=['GET'])
+def get_alertas():
+    conn = get_db()
+    
+    # 1. Busca todos os alunos para criar um dicionário de referência
+    alunos_db = conn.execute('SELECT * FROM Aluno').fetchall()
+    alunos_map = {a['nomealuno']: dict(a) for a in alunos_db} # Mapa: Nome -> Dados do Aluno
+    
+    # Inicializa contadores
+    contagem = {nome: 0 for nome in alunos_map.keys()}
+    
+    # 2. Busca todas as respostas
+    respostas_db = conn.execute('SELECT payload FROM Resposta').fetchall()
+    conn.close()
+    
+    # 3. Processa o JSON de cada resposta
+    for r in respostas_db:
+        if r['payload']:
+            try:
+                payload = json.loads(r['payload'])
+                # O payload é algo como: { "uuid_pergunta": "João Silva", "uuid_outra": "Maria" }
+                # Ou em multipla escolha pode ser arrays, mas no nosso front atual é string simples por radio/select
+                for resposta_valor in payload.values():
+                    # Se o valor da resposta for o nome de um aluno, conta +1
+                    # (Verifica se é string para evitar erro)
+                    if isinstance(resposta_valor, str) and resposta_valor in contagem:
+                        contagem[resposta_valor] += 1
+            except:
+                continue
+
+    # 4. Monta a lista final ordenada
+    lista_alertas = []
+    for nome, qtd in contagem.items():
+        if qtd > 0: # Só mostra quem teve alguma menção
+            aluno = alunos_map[nome]
+            
+            # Formata URL da foto
+            foto_url = None
+            if aluno['foto']:
+                foto_url = f"http://127.0.0.1:5000/uploads/{aluno['foto']}"
+
+            lista_alertas.append({
+                "id": aluno['idaluno'],
+                "nome": aluno['nomealuno'],
+                "matricula": aluno['matricula'],
+                "foto_url": foto_url,
+                "ocorrencias": qtd
+            })
+    
+    # Ordena do maior para o menor número de ocorrências
+    lista_alertas.sort(key=lambda x: x['ocorrencias'], reverse=True)
+    
+    return jsonify(lista_alertas)
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
         init_db()
-        criar_usuario('coordenador', '123456', 'Coordenador')
     app.run(debug=True, port=5000)

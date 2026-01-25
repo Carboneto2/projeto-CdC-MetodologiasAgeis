@@ -11,20 +11,9 @@ CREATE TABLE IF NOT EXISTS Aluno (
     idaluno INTEGER PRIMARY KEY AUTOINCREMENT,
     nomealuno varchar(100) NOT NULL,
     matricula varchar(30),
-    idturma INTEGER,
+    idturma INTEGER,       -- ADICIONADO: Para vincular à tabela Turma
     foto varchar(255),
-    FOREIGN KEY(idturma) REFERENCES Turma(idturma)
-);
-
-/* ============================= */
-/* === USUÁRIOS (REQ 3.1) ====== */
-/* ============================= */
-
-CREATE TABLE IF NOT EXISTS Usuarios (
-    idusuario INTEGER PRIMARY KEY AUTOINCREMENT,
-    login VARCHAR(100) NOT NULL UNIQUE,
-    senha_hash VARCHAR(255) NOT NULL,
-    perfil VARCHAR(20) NOT NULL CHECK (perfil IN ('Professor', 'Coordenador'))
+    FOREIGN KEY(idturma) REFERENCES Turma(idturma)     -- ADICIONADO: Para a Task 3.4
 );
 
 /* ----------------------------------- */
@@ -35,7 +24,7 @@ CREATE TABLE IF NOT EXISTS Formulario (
     idformulario INTEGER PRIMARY KEY AUTOINCREMENT,
     titulo varchar(100) NOT NULL,
     descricao varchar(512) NOT NULL,
-    perguntas TEXT
+    perguntas TEXT -- Vamos salvar todas as perguntas como um JSON aqui
 );
 
 /* --- Tabelas de Perguntas --- */
@@ -86,9 +75,46 @@ CREATE TABLE IF NOT EXISTS Resposta (
     idformulario INTEGER NOT NULL,
     idturma INTEGER NOT NULL,
     idaluno INTEGER,
-    payload TEXT,
+    payload TEXT, -- As respostas também serão salvas como JSON
     data_resposta DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(idformulario) REFERENCES Formulario(idformulario),
     FOREIGN KEY(idturma) REFERENCES Turma(idturma),
     FOREIGN KEY(idaluno) REFERENCES Aluno(idaluno)
+);
+
+CREATE TABLE IF NOT EXISTS Resposta_TextoCurto (
+    idresposta_textocurto INTEGER PRIMARY KEY AUTOINCREMENT,
+    idresposta INTEGER NOT NULL,
+    idtextocurto INTEGER NOT NULL,
+    resposta_texto VARCHAR(255),
+    FOREIGN KEY(idresposta) REFERENCES Resposta(idresposta),
+    FOREIGN KEY(idtextocurto) REFERENCES TextoCurto(idtextocurto)
+);
+
+CREATE TABLE IF NOT EXISTS Resposta_TextoLongo (
+    idresposta_textolongo INTEGER PRIMARY KEY AUTOINCREMENT,
+    idresposta INTEGER NOT NULL,
+    idtextolongo INTEGER NOT NULL,
+    resposta_texto TEXT,
+    FOREIGN KEY(idresposta) REFERENCES Resposta(idresposta),
+    FOREIGN KEY(idtextolongo) REFERENCES TextoLongo(idtextolongo)
+);
+
+CREATE TABLE IF NOT EXISTS Resposta_MultiplaEscolha (
+    idresposta_multiplaescolha INTEGER PRIMARY KEY AUTOINCREMENT,
+    idresposta INTEGER NOT NULL,
+    idmultiplaescolha INTEGER NOT NULL,
+    idalternativa INTEGER NOT NULL,
+    FOREIGN KEY(idresposta) REFERENCES Resposta(idresposta),
+    FOREIGN KEY(idmultiplaescolha) REFERENCES MultiplaEscolha(idmultiplaescolha),
+    FOREIGN KEY(idalternativa) REFERENCES Alternativa(idalternativa)
+);
+
+CREATE TABLE IF NOT EXISTS Resposta_Escala (
+    idresposta_escala INTEGER PRIMARY KEY AUTOINCREMENT,
+    idresposta INTEGER NOT NULL,
+    idescala INTEGER NOT NULL,
+    resposta_valor INTEGER NOT NULL,
+    FOREIGN KEY(idresposta) REFERENCES Resposta(idresposta),
+    FOREIGN KEY(idescala) REFERENCES Escala(idescala)
 );

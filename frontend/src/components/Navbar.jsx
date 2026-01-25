@@ -1,60 +1,38 @@
 import React from "react";
 import Button from "./Button";
 
-export default function Navbar({ active, setActive, onLogout, perfil }) {
-  const isCoordenador = perfil === "Coordenador";
-
+export default function Navbar({ active, setActive, onLogout }) {
   const tabs = [
-    { id: "comparacao", label: "Painel Central", allow: true },
-    { id: "formularios", label: "Conselho de Classe", allow: true },
-    { id: "turmas", label: "Turmas", allow: isCoordenador },
-    { id: "alunos", label: "Alunos", allow: isCoordenador },
-    { id: "usuarios", label: "Usuários", allow: isCoordenador },
+    { id: "comparacao", label: "Painel Central" }, // Agora é o primeiro e com novo nome
+    { id: "turmas", label: "Turmas" },
+    { id: "alunos", label: "Alunos" },
+    { id: "formularios", label: "Conselho de Classe" },
   ];
-
+  
   return (
-    <header className="sticky top-0 z-50 bg-ifverde shadow-md">
+    <div className="sticky top-0 z-40 bg-white/70 backdrop-blur border-b">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-        {/* LOGO + IDENTIDADE */}
         <div className="flex items-center gap-3">
-          {/* Placeholder do logo IF */}
-          <div className="w-10 h-10 rounded bg-white flex items-center justify-center font-bold text-ifverde text-sm">
-            IF
-          </div>
-
-          <div className="hidden sm:block text-white leading-tight">
-            <div className="font-semibold">Instituto Federal</div>
-            <div className="text-xs opacity-80">Conselho de Classe</div>
-          </div>
+          <div className="w-8 h-8 rounded-xl bg-black" />
+          <div className="font-semibold hidden sm:block">Sistema Escolar</div>
         </div>
-
-        {/* MENU */}
-        <nav className="flex items-center gap-2 overflow-x-auto">
-          {tabs
-            .filter((tab) => tab.allow)
-            .map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActive(tab.id)}
-                className={`px-3 py-2 rounded-full text-sm font-medium transition whitespace-nowrap ${
-                  active === tab.id
-                    ? "bg-ifvermelho text-white"
-                    : "text-white hover:bg-ifverdeclaro"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-
-          {/* BOTÃO SAIR */}
-          <Button
-            className="ml-2 bg-white text-ifverde border border-white hover:bg-gray-100 text-sm"
-            onClick={onLogout}
-          >
+        <div className="flex items-center gap-2 overflow-x-auto">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActive(t.id)}
+              className={`px-3 py-2 rounded-full text-sm whitespace-nowrap transition ${
+                active === t.id ? "bg-black text-white" : "hover:bg-gray-100"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+          <Button className="bg-white border text-sm" onClick={onLogout}>
             Sair
           </Button>
-        </nav>
+        </div>
       </div>
-    </header>
+    </div>
   );
 }
