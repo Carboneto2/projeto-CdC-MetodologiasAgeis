@@ -9,18 +9,19 @@ export function useForms() {
   useEffect(() => writeLS(LS_KEYS.RESPOSTAS, respostas), [respostas]);
 
   const addForm = (f) =>
-    setForms((x) => [...x, { ...f, id: generateId() }]); // Usa generateId
+    setForms((x) => [...x, { ...f, id: generateId() }]);
   
   const updateForm = (id, patch) =>
     setForms((x) => x.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   
-  const removeForm = (id) => setForms((x) => x.filter((f) => f.id !== id));
+  const removeForm = (id) =>
+    setForms((x) => x.filter((f) => f.id !== id));
 
   const addResposta = (formId, turmaId, alunoId, payload) => {
     setRespostas((x) => [
       ...x,
       {
-        id: generateId(), // Usa generateId
+        id: generateId(),
         formId,
         turmaId,
         alunoId,

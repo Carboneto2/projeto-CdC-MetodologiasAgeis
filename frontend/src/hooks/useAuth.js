@@ -1,45 +1,53 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { readLS, writeLS, LS_KEYS } from "../lib/storage";
+
+const API_URL = "http://127.0.0.1:5000/api";
 
 export function useAuth() {
   const [user, setUser] = useState(() => readLS(LS_KEYS.AUTH, null));
 
-  useEffect(() => {
-    // garante usuário demo
-    const users = readLS(LS_KEYS.USERS, []);
-    if (!users.find((u) => u.email === "admin@escola")) {
-      users.push({
-        id: crypto.randomUUID(),
-        email: "admin@escola",
-        nome: "Admin",
-        senha: "123456",
+  const login = async (email, senha) => {
+    try {
+      const res = await fetch(`${API_URL}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          login: email,
+          senha: senha,
+        }),
       });
-      writeLS(LS_KEYS.USERS, users);
-    }
-  }, []);
 
-  const login = (email, senha) => {
-    const users = readLS(LS_KEYS.USERS, []);
-    const u = users.find((x) => x.email === email && x.senha === senha);
-    if (u) {
-      writeLS(LS_KEYS.AUTH, { id: u.id, email: u.email, nome: u.nome });
-      setUser({ id: u.id, email: u.email, nome: u.nome });
+      if (!res.ok) {
+        return { ok: false, message: "Credenciais inválidas" };
+      }
+
+      const data = await res.json();
+
+      const usuarioLogado = {
+        id: data.usuario.id,
+        email: data.usuario.login,
+        perfil: data.usuario.perfil,
+      };
+
+      writeLS(LS_KEYS.AUTH, usuarioLogado);
+      setUser(usuarioLogado);
+
       return { ok: true };
+    } catch {
+      return { ok: false, message: "Erro ao conectar com o servidor" };
     }
-    return { ok: false, message: "Credenciais inválidas" };
   };
+
   const logout = () => {
     localStorage.removeItem(LS_KEYS.AUTH);
     setUser(null);
   };
-  const register = (nome, email, senha) => {
-    const users = readLS(LS_KEYS.USERS, []);
-    if (users.find((u) => u.email === email))
-      return { ok: false, message: "E-mail já cadastrado" };
-    const novo = { id: crypto.randomUUID(), nome, email, senha };
-    users.push(novo);
-    writeLS(LS_KEYS.USERS, users);
-    return { ok: true };
+
+  const register = () => {
+    return { ok: false, message: "Cadastro desativado" };
   };
+
   return { user, login, logout, register };
 }
