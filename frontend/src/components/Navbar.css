@@ -1,56 +1,143 @@
+/* NAVBAR BASE */
 .navbar {
-    background-color: #333; /* Fundo escuro */
-    color: white;
+    background-color: #1b5e20; /* verde IF */
+    color: #ffffff;
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 1rem 2rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-.navbar-logo a {
-    color: white;
+/* LOGO / TÍTULO */
+.navbar-title {
+    color: #ffffff;
     text-decoration: none;
     font-size: 1.2rem;
-    font-weight: bold;
+    font-weight: 700;
 }
 
+/* LINKS */
 .navbar-links {
     display: flex;
-    gap: 20px;
+    align-items: center;
+    gap: 0.5rem;
 }
 
+.nav-group {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0 0.4rem;
+}
+
+
+/* BOTÕES / LINKS */
 .nav-link {
-    color: #ddd;
+    color: #ffffff;
     text-decoration: none;
-    padding: 5px 10px;
-    border-radius: 4px;
-    transition: 0.3s;
+    padding: 0.45rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: 
+        background-color 0.25s ease,
+        transform 0.15s ease;
 }
 
+/* HOVER */
 .nav-link:hover {
-    background-color: #555;
-    color: white;
+    background-color: #a51f1f; /* vermelho mais baixo */
+    transform: translateY(-1px);
 }
 
-/* Destaque para o botão de Admin */
+/* LINK ATIVO / DESTAQUE */
 .nav-link.destaque {
-    background-color: #2E7D32; /* Verde */
-    color: white;
-    font-weight: bold;
+    background-color: #c62828; /* vermelho IF */
+    font-weight: 700;
 }
 
+/* LINK SECUNDÁRIO */
+.nav-link.secondary {
+    opacity: 0.75;
+    font-size: 0.8rem;
+}
+
+/* USUÁRIO */
 .navbar-user {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 1rem;
 }
 
+.user-info {
+    text-align: right;
+}
+
+.user-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.user-role {
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+/* BOTÃO SAIR */
 .btn-sair {
     background-color: #c62828;
-    color: white;
+    color: #ffffff;
     border: none;
-    padding: 5px 10px;
-    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
     cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.btn-sair:hover {
+    background-color: #a51f1f;
+    transform: translateY(-1px);
+}
+
+/* RESPONSIVO */
+@media (max-width: 900px) {
+    .navbar {
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .navbar-links {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    /* Indicador moderno no hover */
+.nav-link {
+    position: relative;
+}
+
+.nav-link::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 4px;
+    width: 0;
+    height: 2px;
+    background-color: #c62828;
+    transition: width 0.25s ease, left 0.25s ease;
+}
+
+/* hover */
+.nav-link:hover::after {
+    width: 60%;
+    left: 20%;
+}
+
+/* ativo */
+.nav-link.destaque::after {
+    width: 70%;
+    left: 15%;
+}
+
 }
