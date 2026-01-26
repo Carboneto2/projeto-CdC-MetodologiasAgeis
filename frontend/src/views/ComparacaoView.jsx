@@ -86,11 +86,8 @@ export default function ComparacaoView() {
 
   // --- FUNÇÃO AUXILIAR PARA EXTRAIR ID DO USUÁRIO ---
   const extrairUsuarioId = (resposta) => {
-    // Tenta todas as combinações possíveis de IDs
-    // Verifica se a resposta é um objeto válido
     if (!resposta) return null;
     
-    // Testa todas as propriedades possíveis que podem conter o ID do usuário
     const possibleKeys = ['idusuario', 'usuario_id', 'usuarioId', 'id_usuario', 'userId', 'usuario', 'idUsuario', 'id'];
     
     for (const key of possibleKeys) {
@@ -107,7 +104,6 @@ export default function ComparacaoView() {
     if (!usuarioId) return `Usuário Desconhecido`;
     
     const usuario = usuarios.find(u => {
-      // Verifica todas as propriedades possíveis no objeto usuário
       const possibleUserKeys = ['idusuario', 'id', 'usuario_id', 'userId', 'usuarioId', 'id_usuario', 'idUsuario'];
       
       for (const key of possibleUserKeys) {
@@ -123,6 +119,59 @@ export default function ComparacaoView() {
     }
     
     return `Usuário ${usuarioId}`;
+  };
+
+  // --- FUNÇÃO PARA AGRUPAR RESPOSTAS SIMILARES ---
+  const agruparRespostasSimilares = (respostasComUsuarios) => {
+    const agrupadas = {};
+    
+    respostasComUsuarios.forEach(item => {
+      const textoNormalizado = item.texto.trim().toLowerCase();
+      
+      if (!agrupadas[textoNormalizado]) {
+        agrupadas[textoNormalizado] = {
+          texto: item.texto,
+          usuarios: new Set()
+        };
+      }
+      
+      // Adiciona o usuário ao conjunto (Set evita duplicatas)
+      agrupadas[textoNormalizado].usuarios.add(item.usuarioId);
+    });
+    
+    // Converte Set para array e obtém nomes dos usuários
+    return Object.values(agrupadas).map(grupo => ({
+      texto: grupo.texto,
+      usuariosIds: Array.from(grupo.usuarios),
+      usuariosNomes: Array.from(grupo.usuarios).map(encontrarNomeUsuario)
+    }));
+  };
+
+  // --- FUNÇÃO PARA AGRUPAR NOMES CITADOS ---
+  const agruparNomesCitados = (respostasComUsuarios) => {
+    const nomesAgrupados = {};
+    
+    respostasComUsuarios.forEach(item => {
+      const nomes = item.texto.split(/[,;\n]/).map(n => n.trim()).filter(n => n.length > 2);
+      
+      nomes.forEach(nome => {
+        if (!nomesAgrupados[nome]) {
+          nomesAgrupados[nome] = {
+            nome: nome,
+            usuarios: new Set()
+          };
+        }
+        
+        nomesAgrupados[nome].usuarios.add(item.usuarioId);
+      });
+    });
+    
+    // Converte Set para array e obtém nomes dos usuários
+    return Object.values(nomesAgrupados).map(grupo => ({
+      nome: grupo.nome,
+      usuariosIds: Array.from(grupo.usuarios),
+      usuariosNomes: Array.from(grupo.usuarios).map(encontrarNomeUsuario)
+    }));
   };
 
   // --- 3. PROCESSAMENTO DOS DADOS (MEMO) ---
@@ -152,18 +201,12 @@ export default function ComparacaoView() {
       String(r.turma_id) === String(filtroTurma)
     );
 
-
-    // --- LOGICA CORRIGIDA PARA OS BOTÕES ---
     const participantesMap = {};
     
     respostasBase.forEach(resp => {
       const usuarioId = extrairUsuarioId(resp);
       
-      
-      if (!usuarioId) {
-        console.warn('Não foi possível extrair ID do usuário da resposta:', resp);
-        return;
-      }
+      if (!usuarioId) return;
 
       if (!participantesMap[usuarioId]) {
         const nomeUsuario = encontrarNomeUsuario(usuarioId);
@@ -176,30 +219,54 @@ export default function ComparacaoView() {
     
     const listaParticipantes = Object.values(participantesMap);
     
-    // ------------------------------------------
-
-    const respostasParaExibir = filtroUsuario 
+    // Filtra respostas por usuário se necessário
+    const respostasFiltradas = filtroUsuario 
       ? respostasBase.filter(r => {
           const respUsuarioId = extrairUsuarioId(r);
           return respUsuarioId && String(respUsuarioId) === String(filtroUsuario);
         })
       : respostasBase;
 
+    // Processa as questões
     const consolidado = modelo.perguntas.map(pergunta => {
-      const respostasDestaPergunta = respostasParaExibir
-        .map(r => r.respostas ? r.respostas[pergunta.id] : null)
+      // Coleta todas as respostas para esta pergunta (já filtradas por usuário se aplicável)
+      const respostasComUsuarios = respostasFiltradas
+        .map(r => {
+          const textoResposta = r.respostas ? r.respostas[pergunta.id] : null;
+          if (!textoResposta) return null;
+          
+          const usuarioId = extrairUsuarioId(r);
+          return {
+            texto: textoResposta,
+            usuarioId: usuarioId
+          };
+        })
         .filter(Boolean);
+
+      // Verifica se é uma pergunta que pede para citar nomes
+      const isPerguntaDeNomes = pergunta.enunciado.toLowerCase().match(/cite|quais|quem/);
+      
+      let respostasAgrupadas = [];
+      
+      if (isPerguntaDeNomes) {
+        // Para perguntas de nomes, usa a função de agrupar nomes citados
+        respostasAgrupadas = agruparNomesCitados(respostasComUsuarios);
+      } else {
+        // Para perguntas normais, agrupa respostas similares (funciona tanto com quanto sem filtro)
+        respostasAgrupadas = agruparRespostasSimilares(respostasComUsuarios);
+      }
 
       return {
         id: pergunta.id,
         enunciado: pergunta.enunciado,
-        respostas: respostasDestaPergunta
+        isPerguntaDeNomes: isPerguntaDeNomes,
+        respostas: respostasAgrupadas
       };
     });
 
     return {
       totalGeral: respostasBase.length,
-      totalFiltrado: respostasParaExibir.length,
+      totalFiltrado: respostasFiltradas.length,
       participantes: listaParticipantes,
       questoes: consolidado
     };
@@ -320,9 +387,6 @@ export default function ComparacaoView() {
                   <p className="text-xs text-gray-500 italic">
                     Nenhum participante encontrado para este filtro.
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Verifique se as respostas têm IDs de usuário válidos.
-                  </p>
                 </div>
               )}
             </div>
@@ -341,24 +405,86 @@ export default function ComparacaoView() {
                   <p className="text-gray-400 italic text-sm">Nenhuma resposta encontrada para este critério.</p>
                 ) : (
                   <div className="space-y-2">
-                    {/* Filtro inteligente para tags de nomes */}
-                    {q.enunciado.toLowerCase().match(/cite|quais|quem/) ? (
+                    {/* Para perguntas que pedem nomes */}
+                    {q.isPerguntaDeNomes ? (
                       <div className="flex flex-wrap gap-2 pt-1">
-                        {q.respostas
-                          .flatMap(r => r.split(/[,;\n]/)) 
-                          .map(n => n.trim())
-                          .filter(n => n.length > 2)
-                          .map((nome, i) => (
-                            <span key={i} className="bg-yellow-50 text-yellow-800 px-3 py-1 rounded-full text-xs border border-yellow-200 font-semibold shadow-sm">
-                              👤 {nome}
+                        {q.respostas.map((item, i) => (
+                          <div key={i} className="relative group">
+                            <span className="bg-yellow-50 text-yellow-800 px-3 py-1 rounded-full text-xs border border-yellow-200 font-semibold shadow-sm cursor-help">
+                              👤 {item.nome}
+                              <span className="ml-1 text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
+                                {item.usuariosIds.length}
+                              </span>
                             </span>
-                          ))}
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 min-w-[200px]">
+                              <div className="flex items-start gap-2 mb-1">
+                                <span className="text-blue-300 mt-0.5">👥</span>
+                                <div>
+                                  <p className="font-bold text-blue-300 mb-1">
+                                    {filtroUsuario ? 'Citado por:' : 'Citado por:'}
+                                  </p>
+                                  <div className="space-y-1">
+                                    {item.usuariosNomes.map((nome, idx) => (
+                                      <div key={idx} className="flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+                                        <span className="font-medium">{nome}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ) : (
-                      <div className="space-y-2 pt-1">
+                      /* Para perguntas normais */
+                      <div className="space-y-3 pt-1">
                         {q.respostas.map((resp, i) => (
-                          <div key={i} className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-400 leading-relaxed">
-                            {resp}
+                          <div 
+                            key={i}
+                            className="relative group"
+                          >
+                            <div className="text-sm text-gray-700 bg-gray-50 p-4 rounded-lg border-l-4 border-blue-400 leading-relaxed cursor-help transition-all hover:bg-blue-50 hover:border-blue-500">
+                              {resp.texto}
+                              {resp.usuariosIds.length > 1 && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <span className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
+                                    {resp.usuariosIds.length} {resp.usuariosIds.length === 1 ? 'respondente' : 'respondentes'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="absolute bottom-full left-4 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 min-w-[250px] max-w-md">
+                              <div className="flex items-start gap-3">
+                                <div className="bg-blue-800 p-2 rounded-lg">
+                                  <span className="text-lg">👥</span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-bold text-blue-300 mb-2">
+                                    {resp.usuariosIds.length === 1 ? 'Respondente:' : 'Respondentes:'}
+                                  </p>
+                                  <div className="space-y-2">
+                                    {resp.usuariosNomes.map((nome, idx) => (
+                                      <div key={idx} className="flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                        <span className="font-medium text-sm">{nome}</span>
+                                        {filtroUsuario && String(filtroUsuario) === String(resp.usuariosIds[idx]) && (
+                                          <span className="text-[10px] bg-blue-700 text-white px-1.5 py-0.5 rounded">Você</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <div className="mt-3 pt-2 border-t border-gray-700">
+                                    <p className="text-gray-400 text-[10px]">
+                                      {resp.usuariosIds.length} {resp.usuariosIds.length === 1 ? 'pessoa respondeu' : 'pessoas responderam'} isso
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="absolute top-full left-8 transform -translate-x-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                            </div>
                           </div>
                         ))}
                       </div>
