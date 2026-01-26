@@ -103,6 +103,7 @@ export default function TurmasView() {
                     <option>Manhã</option>
                     <option>Tarde</option>
                     <option>Noite</option>
+                    <option>Integral</option>
                   </select>
                 </div>
               </div>
