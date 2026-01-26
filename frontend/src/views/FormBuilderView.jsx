@@ -146,94 +146,163 @@ export default function FormBuilderView() {
     } catch (e) { alert("Erro ao excluir."); }
   };
 
-  return (
-    <div className="max-w-5xl mx-auto p-4 space-y-10">
+ return (
+  <div className="bg-gray-100 min-h-[calc(100vh-64px)]">
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+
+      {/* CABEÇALHO */}
+      <header className="bg-white rounded-xl shadow-md border p-6 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-2 bg-red-700"></div>
+        <h1 className="text-2xl font-bold text-green-800">
+          Gerenciamento de Formulários
+        </h1>
+        <p className="text-sm text-gray-600 mt-1">
+          Criação e manutenção dos modelos de Conselho de Classe
+        </p>
+      </header>
+
       {/* EDITOR DE FORMULÁRIO */}
-      <div className="bg-white p-6 rounded-xl shadow-xl border border-gray-200">
-        <div className="flex justify-between items-center mb-8 border-b pb-4">
-          <h1 className="text-2xl font-bold text-gray-800">
-            {editandoId ? "✏️ Editando Modelo" : "📝 Criar Novo Questionário"}
-          </h1>
-          <button 
-            onClick={gerarModeloPadrao} 
-            className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-indigo-700 shadow-md transition-all flex items-center gap-2"
+      <section className="bg-white p-6 rounded-xl shadow-md border space-y-8">
+
+        {/* TOPO */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 border-b pb-4">
+          <h2 className="text-xl font-bold text-gray-800">
+            {editandoId ? "Editando modelo" : "Criar novo formulário"}
+          </h2>
+          <button
+            onClick={gerarModeloPadrao}
+            className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-800 transition-all"
           >
-            📄 Carregar Modelo Oficial
+            Carregar modelo oficial
           </button>
         </div>
 
-        <div className="grid gap-6 mb-8">
+        {/* TÍTULO / DESCRIÇÃO */}
+        <div className="grid gap-6">
           <div>
-            <label className="text-xs font-bold text-gray-400 uppercase">Título do Formulário</label>
-            <input 
-              className="w-full text-xl font-bold border-b-2 border-gray-100 p-2 outline-none focus:border-indigo-500 transition-all" 
-              value={titulo} 
-              onChange={e => setTitulo(e.target.value)} 
+            <label className="text-xs font-bold text-gray-500 uppercase">
+              Título do formulário
+            </label>
+            <input
+              className="w-full text-lg font-semibold border-b-2 border-gray-200 p-2 outline-none focus:border-green-700 transition-all bg-transparent"
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
               placeholder="Ex: Conselho de Classe 2026"
             />
           </div>
+
           <div>
-            <label className="text-xs font-bold text-gray-400 uppercase">Descrição/Instruções</label>
-            <textarea 
-              className="w-full p-3 border rounded-lg bg-gray-50 focus:bg-white transition-all outline-none" 
-              value={descricao} 
-              onChange={e => setDescricao(e.target.value)} 
+            <label className="text-xs font-bold text-gray-500 uppercase">
+              Descrição / instruções
+            </label>
+            <textarea
+              className="w-full p-3 border rounded-lg bg-gray-50 focus:bg-white transition-all outline-none"
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
               rows={2}
             />
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3 mb-8 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-          <span className="text-sm font-bold text-indigo-800 w-full mb-1">Adicionar Pergunta:</span>
-          <button onClick={() => addPergunta("texto")} className="bg-white border-2 border-indigo-200 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100">+ Texto Curto</button>
-          <button onClick={() => addPergunta("texto_longo")} className="bg-white border-2 border-indigo-200 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100">+ Texto Longo / Alunos</button>
-          <button onClick={() => addPergunta("multipla")} className="bg-white border-2 border-indigo-200 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100">+ Múltipla Escolha</button>
+        {/* ADICIONAR PERGUNTAS */}
+        <div className="flex flex-wrap gap-3 p-4 bg-gray-50 rounded-xl border">
+          <span className="text-sm font-bold text-gray-700 w-full">
+            Adicionar pergunta
+          </span>
+          <button
+            onClick={() => addPergunta("texto")}
+            className="bg-white border px-4 py-1.5 rounded-lg text-sm hover:bg-gray-100"
+          >
+            Texto curto
+          </button>
+          <button
+            onClick={() => addPergunta("texto_longo")}
+            className="bg-white border px-4 py-1.5 rounded-lg text-sm hover:bg-gray-100"
+          >
+            Texto longo
+          </button>
+          <button
+            onClick={() => addPergunta("multipla")}
+            className="bg-white border px-4 py-1.5 rounded-lg text-sm hover:bg-gray-100"
+          >
+            Múltipla escolha
+          </button>
         </div>
 
+        {/* PERGUNTAS */}
         <div className="space-y-6">
           {perguntas.map((p, idx) => (
-            <div key={p.id} className="p-5 bg-white border-2 border-gray-100 rounded-xl shadow-sm hover:border-indigo-200 transition-all relative group">
-              <div className="flex justify-between gap-4 mb-5">
+            <div
+              key={p.id}
+              className="p-5 bg-white border rounded-xl shadow-sm space-y-4"
+            >
+              <div className="flex justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="bg-gray-800 text-white text-[10px] px-2 py-0.5 rounded-full">Q{idx + 1}</span>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase">{p.tipo}</span>
+                    <span className="bg-gray-800 text-white text-xs px-2 py-0.5 rounded-full">
+                      Q{idx + 1}
+                    </span>
+                    <span className="text-xs font-bold text-gray-400 uppercase">
+                      {p.tipo}
+                    </span>
                   </div>
-                  <input 
-                    className="w-full border-b-2 border-transparent font-semibold p-1 outline-none focus:border-indigo-500 text-gray-700" 
-                    value={p.enunciado} 
-                    onChange={e => updatePergunta(p.id, "enunciado", e.target.value)} 
-                    placeholder="Digite o enunciado da pergunta..." 
+                  <input
+                    className="w-full border-b border-gray-300 font-medium p-1 outline-none focus:border-green-700"
+                    value={p.enunciado}
+                    onChange={(e) =>
+                      updatePergunta(p.id, "enunciado", e.target.value)
+                    }
+                    placeholder="Digite o enunciado da pergunta"
                   />
                 </div>
-                <button onClick={() => removePergunta(p.id)} className="text-gray-300 hover:text-red-500 transition-colors">🗑️</button>
+                <button
+                  onClick={() => removePergunta(p.id)}
+                  className="text-gray-400 hover:text-red-600 transition-colors"
+                >
+                  Remover
+                </button>
               </div>
 
               {p.tipo === "multipla" && (
-                <div className="mb-5 p-3 bg-amber-50 rounded-lg border border-amber-100">
-                  <label className="text-[10px] font-bold text-amber-700 uppercase block mb-1">Opções (separe com vírgula)</label>
-                  <input 
-                    className="w-full border p-2 rounded bg-white text-sm" 
-                    value={(p.opcoes || []).join(", ")} 
-                    onChange={e => updatePergunta(p.id, "opcoes", e.target.value.split(','))} 
+                <div className="p-3 bg-gray-50 rounded-lg border">
+                  <label className="text-xs font-bold text-gray-500 uppercase block mb-1">
+                    Opções
+                  </label>
+                  <input
+                    className="w-full border p-2 rounded bg-white text-sm"
+                    value={(p.opcoes || []).join(", ")}
+                    onChange={(e) =>
+                      updatePergunta(
+                        p.id,
+                        "opcoes",
+                        e.target.value.split(",")
+                      )
+                    }
                   />
                 </div>
               )}
 
-              <div className="pt-3 border-t border-dashed">
-                <p className="text-[10px] font-bold text-gray-400 uppercase mb-3">Quem deve responder esta pergunta?</p>
+              {/* PERFIS */}
+              <div className="pt-3 border-t">
+                <p className="text-xs font-bold text-gray-500 uppercase mb-2">
+                  Perfis que respondem
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  {CARGOS_SISTEMA.map(cargo => {
+                  {CARGOS_SISTEMA.map((cargo) => {
                     const ativo = p.perfis.includes(cargo);
                     return (
-                      <button 
-                        key={cargo} 
-                        onClick={() => toggleCargo(p.id, cargo)} 
-                        className={`text-[10px] px-3 py-1 rounded-full border-2 transition-all font-bold ${ativo ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300'}`}
+                      <button
+                        key={cargo}
+                        onClick={() => toggleCargo(p.id, cargo)}
+                        className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                          ativo
+                            ? "bg-green-700 border-green-700 text-white"
+                            : "bg-white border-gray-300 text-gray-500 hover:border-gray-500"
+                        }`}
                       >
                         {cargo}
                       </button>
-                    )
+                    );
                   })}
                 </div>
               </div>
@@ -241,49 +310,63 @@ export default function FormBuilderView() {
           ))}
         </div>
 
-        <button 
-          onClick={salvarFormulario} 
-          className="mt-10 w-full bg-emerald-600 text-white py-4 rounded-xl font-black text-lg hover:bg-emerald-700 shadow-lg transition-all active:scale-[0.98]"
+        {/* SALVAR */}
+        <button
+          onClick={salvarFormulario}
+          className="w-full bg-green-700 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-800 transition-all"
         >
-          {editandoId ? "ATUALIZAR MODELO" : "SALVAR MODELO NO SISTEMA"}
+          {editandoId ? "Atualizar modelo" : "Salvar modelo"}
         </button>
-      </div>
+      </section>
 
-      {/* LISTA DE MODELOS SALVOS */}
-      <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
-        <h3 className="font-bold text-xl mb-6 text-gray-800 flex items-center gap-2">
-          📚 Modelos Disponíveis <span className="text-sm font-normal text-gray-400">({listaFormularios.length})</span>
+      {/* LISTA DE MODELOS */}
+      <section className="bg-white p-6 rounded-xl shadow-md border">
+        <h3 className="font-bold text-xl mb-6 text-gray-800">
+          Modelos disponíveis ({listaFormularios.length})
         </h3>
+
         <div className="grid gap-4">
-          {listaFormularios.map(f => (
-            <div key={f.id} className="flex justify-between items-center p-5 border-2 border-gray-50 rounded-xl hover:bg-gray-50 transition-all group">
+          {listaFormularios.map((f) => (
+            <div
+              key={f.id}
+              className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 p-5 border rounded-xl hover:bg-gray-50 transition-all"
+            >
               <div>
-                <h4 className="font-bold text-indigo-900 group-hover:text-indigo-600 transition-colors">{f.titulo}</h4>
-                <p className="text-xs text-gray-400">{f.perguntas.length} questões configuradas</p>
+                <h4 className="font-bold text-gray-800">
+                  {f.titulo}
+                </h4>
+                <p className="text-xs text-gray-500">
+                  {f.perguntas.length} questões configuradas
+                </p>
               </div>
+
               <div className="flex gap-2">
-                <button 
-                  onClick={() => handleEditar(f)} 
-                  className="bg-white border-2 border-indigo-100 text-indigo-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                <button
+                  onClick={() => handleEditar(f)}
+                  className="bg-white border px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 hover:text-white transition-all"
                 >
-                  👁️ Visualizar / Editar
+                  Visualizar / Editar
                 </button>
-                <button 
-                  onClick={() => handleExcluir(f.id)} 
-                  className="bg-white border-2 border-red-50 border-red-50 text-red-400 px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-500 hover:text-white transition-all"
+                <button
+                  onClick={() => handleExcluir(f.id)}
+                  className="bg-white border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-600 hover:text-white transition-all"
                 >
-                  🗑️
+                  Excluir
                 </button>
               </div>
             </div>
           ))}
+
           {listaFormularios.length === 0 && (
             <div className="text-center py-10 text-gray-400 border-2 border-dashed rounded-xl">
-              Nenhum modelo salvo. Use o botão "Carregar Modelo Oficial" acima para começar.
+              Nenhum modelo salvo ainda.
             </div>
           )}
         </div>
-      </div>
+      </section>
+
     </div>
-  );
+  </div>
+);
+
 }
