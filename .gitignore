@@ -26,6 +26,9 @@ lerna-debug.log*
 # Ambientes Virtuais (Nunca envie a pasta "venv")
 backend/.venv/
 backend/venv/
+backend/conselho.db
+backend/venv/
+node_modules/
 
 # Cache do Python
 backend/__pycache__/

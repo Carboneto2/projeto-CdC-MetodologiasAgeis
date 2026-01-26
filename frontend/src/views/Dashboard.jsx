@@ -1,85 +1,181 @@
-import React, { useContext } from "react";
-import { AuthContext } from '../context/AuthContext';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-//import './DashboardView.css'; // Certifique-se de que o CSS existe (criamos nos passos anteriores)
+import React, { useState, useEffect, useMemo } from "react";
+import { useTurmas } from "../hooks/useTurmas"; 
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  PieChart, Pie, Cell, Legend 
+} from "recharts";
 
-export function Dashboard() {
-  const { user } = useContext(AuthContext);
+const COLORS = ["#6366F1", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
 
-  // Dados fictícios para os gráficos (Task 3.5)
-  const dadosGrafico = [
-    { nome: '1º Info', media: 8.5, ocorrencias: 2 },
-    { nome: '2º Agro', media: 6.2, ocorrencias: 8 },
-    { nome: '3º Meio Amb', media: 7.8, ocorrencias: 4 },
-    { nome: '1º Agro', media: 5.5, ocorrencias: 12 },
-  ];
+export default function Dashboard() {
+  const { turmas } = useTurmas(); 
+  const [respostas, setRespostas] = useState([]);
+  const [formularios, setFormularios] = useState([]);
+  const [filtroTurma, setFiltroTurma] = useState("");
+  const [filtroForm, setFiltroForm] = useState("");
+  const [filtroPergunta, setFiltroPergunta] = useState(""); 
+
+  useEffect(() => {
+    const carregarDados = async () => {
+      try {
+        const [resRespostas, resForms] = await Promise.all([
+          fetch("http://localhost:5000/respostas").then(r => r.json()),
+          fetch("http://localhost:5000/formularios").then(r => r.json())
+        ]);
+        setRespostas(resRespostas);
+        setFormularios(resForms);
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+      }
+    };
+    carregarDados();
+  }, []);
+
+  // --- BUSCA PERGUNTAS DO FORMULÁRIO SELECIONADO ---
+  const perguntasDoFiltro = useMemo(() => {
+    const form = formularios.find(f => String(f.id) === String(filtroForm));
+    return form ? form.perguntas : [];
+  }, [filtroForm, formularios]);
+
+  // --- LÓGICA DE PROCESSAMENTO DE INSTÂNCIAS ---
+  const dadosGraficos = useMemo(() => {
+    const filtradas = respostas.filter(r => {
+      const matchTurma = filtroTurma ? String(r.turma_id) === String(filtroTurma) : true;
+      const matchForm = filtroForm ? String(r.formulario_id) === String(filtroForm) : true;
+      return matchTurma && matchForm;
+    });
+
+    const contagemAlunos = {};
+
+    filtradas.forEach(item => {
+      const respObj = item.respostas;
+
+      if (filtroPergunta) {
+        // Filtro específico por pergunta (Instância)
+        const valor = respObj[filtroPergunta];
+        if (typeof valor === "string") {
+          const nomes = valor.split(',').map(n => n.trim()).filter(n => n.length > 2);
+          nomes.forEach(nome => {
+            const itensIgnorar = ["Sim", "Não", "Conversas", "Faltas", "Desinteresse"];
+            if (!itensIgnorar.includes(nome)) {
+              contagemAlunos[nome] = (contagemAlunos[nome] || 0) + 1;
+            }
+          });
+        }
+      } else {
+        // Geral do formulário
+        Object.values(respObj).forEach(valor => {
+          if (typeof valor === "string") {
+            const nomes = valor.split(',').map(n => n.trim()).filter(n => n.length > 2);
+            nomes.forEach(nome => {
+              const itensIgnorar = ["Sim", "Não", "Conversas", "Faltas", "Desinteresse"];
+              if (!itensIgnorar.includes(nome)) {
+                contagemAlunos[nome] = (contagemAlunos[nome] || 0) + 1;
+              }
+            });
+          }
+        });
+      }
+    });
+
+    const formatados = Object.entries(contagemAlunos)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      pizza: formatados.slice(0, 7),
+      barras: formatados
+    };
+  }, [respostas, filtroTurma, filtroForm, filtroPergunta]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      {/* A Navbar já está no App.jsx, não precisamos chamar ela aqui */}
+    <div className="p-6 bg-gray-50 min-h-screen space-y-6">
+      <h1 className="text-2xl font-bold text-gray-800">Dashboard Analítico</h1>
 
-      <main className="max-w-6xl mx-auto space-y-6">
-        
-        {/* SEU CABEÇALHO ORIGINAL */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">
-              Bem-vindo(a), {user?.nome || 'Usuário'}
-            </h2>
-            <p className="text-gray-500">Visão Geral do Conselho de Classe</p>
-          </div>
-          <div className="text-xs text-gray-500 bg-white p-2 rounded border">
-             Ambiente Seguro
-          </div>
+      {/* FILTROS */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="text-xs font-bold text-gray-400 block mb-1 uppercase">1. Turma</label>
+          <select 
+            className="w-full border p-2 rounded text-sm"
+            value={filtroTurma}
+            onChange={e => setFiltroTurma(e.target.value)}
+          >
+            <option value="">Todas as Turmas</option>
+            {turmas.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+          </select>
         </div>
 
-        {/* --- CARDS DE KPI (INDICADORES) --- */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-red-500">
-                <h3 className="text-gray-500 text-sm font-medium">Alunos em Risco</h3>
-                <span className="text-3xl font-bold text-gray-800">15</span>
-                <p className="text-xs text-red-500 mt-1">Notas abaixo de 60%</p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-blue-500">
-                <h3 className="text-gray-500 text-sm font-medium">Total de Turmas</h3>
-                <span className="text-3xl font-bold text-gray-800">4</span>
-                <p className="text-xs text-gray-400 mt-1">Analisadas neste ciclo</p>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-green-500">
-                <h3 className="text-gray-500 text-sm font-medium">Média Geral</h3>
-                <span className="text-3xl font-bold text-gray-800">7.2</span>
-                <p className="text-xs text-green-600 mt-1">Acima da meta</p>
-            </div>
+        <div>
+          <label className="text-xs font-bold text-gray-400 block mb-1 uppercase">2. Formulário</label>
+          <select 
+            className="w-full border p-2 rounded text-sm"
+            value={filtroForm}
+            onChange={e => {
+                setFiltroForm(e.target.value);
+                setFiltroPergunta(""); 
+            }}
+          >
+            <option value="">Selecione um Modelo</option>
+            {formularios.map(f => <option key={f.id} value={f.id}>{f.titulo}</option>)}
+          </select>
         </div>
 
-        {/* --- GRÁFICO --- */}
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Desempenho por Turma</h3>
-            <div style={{ width: '100%', height: 350 }}>
-                <ResponsiveContainer>
-                    <BarChart data={dadosGrafico}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="nome" />
-                        <YAxis />
-                        <Tooltip 
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
-                        />
-                        <Legend />
-                        <Bar dataKey="media" fill="#2E7D32" name="Média" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="ocorrencias" fill="#C62828" name="Ocorrências" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
+        <div>
+          <label className="text-xs font-bold text-indigo-600 block mb-1 uppercase">3. Instância da Pergunta</label>
+          <select 
+            className={`w-full border p-2 rounded text-sm outline-none ${!filtroForm ? 'bg-gray-100' : 'bg-indigo-50 border-indigo-200'}`}
+            value={filtroPergunta}
+            onChange={e => setFiltroPergunta(e.target.value)}
+            disabled={!filtroForm}
+          >
+            <option value="">Todas as perguntas (Geral)</option>
+            {/* CORRIGIDO: perguntasDoFiltro (com 'a') */}
+            {perguntasDoFiltro.map(p => (
+              <option key={p.id} value={p.id}>{p.enunciado}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* GRÁFICOS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-xl shadow-md border h-[450px]">
+          <h2 className="text-lg font-bold text-gray-700 mb-4">Top Alunos Citados</h2>
+          {dadosGraficos.pizza.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={dadosGraficos.pizza} dataKey="value" innerRadius={60} outerRadius={100} label={({name}) => name}>
+                  {dadosGraficos.pizza.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex items-center justify-center text-gray-300">Sem dados.</div>
+          )}
         </div>
 
-      </main>
-
-      {/* SEU FOOTER ORIGINAL */}
-      <footer className="max-w-6xl mx-auto px-4 py-8 text-xs text-gray-500 text-center mt-8 border-t">
-        Sistema de Conselho de Classe - Versão Local
-      </footer>
+        <div className="bg-white p-6 rounded-xl shadow-md border h-[450px]">
+          <h2 className="text-lg font-bold text-gray-700 mb-4">Volume de Menções</h2>
+          {dadosGraficos.barras.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dadosGraficos.barras} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" width={120} style={{fontSize: '12px'}} />
+                <Tooltip />
+                <Bar dataKey="value" fill="#6366F1" radius={[0, 4, 4, 0]} barSize={25} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex items-center justify-center text-gray-300">Selecione os filtros acima.</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

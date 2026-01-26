@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { generateId } from "../lib/storage";
 
-// Lista de Cargos para os Checkboxes
 const CARGOS_SISTEMA = [
   "Docente",
   "Coordenador",
@@ -14,297 +13,277 @@ const CARGOS_SISTEMA = [
 ];
 
 export default function FormBuilderView() {
-  // --- ESTADOS ---
   const [titulo, setTitulo] = useState("Conselho de Classe — Modelo Novo");
   const [descricao, setDescricao] = useState("Descrição do formulário...");
   const [perguntas, setPerguntas] = useState([]);
-  
   const [listaFormularios, setListaFormularios] = useState([]);
-  const [editandoId, setEditandoId] = useState(null); // Para saber se estamos criando ou editando
-  
-  // Estados de Visualização (Modal)
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [formPreview, setFormPreview] = useState(null);
+  const [editandoId, setEditandoId] = useState(null);
 
-  // --- 1. CARREGAR DO BANCO ---
+  // --- CARREGAR FORMULÁRIOS DO BANCO ---
   const carregarFormularios = async () => {
     try {
       const res = await fetch('http://localhost:5000/formularios');
-      if (res.ok) setListaFormularios(await res.json());
-    } catch (error) { console.error(error); }
+      if (res.ok) {
+        const data = await res.json();
+        setListaFormularios(data);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar formulários:", error);
+    }
   };
-  
-  useEffect(() => { carregarFormularios(); }, []);
 
-  // --- 2. MODELO OFICIAL (RESTAURADO) ---
+  useEffect(() => {
+    carregarFormularios();
+  }, []);
+
+  // --- MODELO OFICIAL ATUALIZADO ---
   const gerarModeloPadrao = () => {
     if (perguntas.length > 0 && !window.confirm("Isso substituirá suas perguntas atuais. Continuar?")) return;
 
-    setTitulo("Conselho de Classe — Modelo Oficial");
-    setDescricao("Análise completa da turma: Docente, NAE, NAPNE, NEABI e NEPGES.");
-    
-    // Lista de perguntas padrão (agora com perfis incluídos!)
-    const todasPermissoes = [...CARGOS_SISTEMA];
-    
+    setTitulo("Conselho de Classe — Modelo Oficial Completo");
+    setDescricao("Análise por setores: Docente, NAE, NAPNE, NEPGES e NEABI.");
+
+    const P_DOCENTE = ["Docente", "Coordenador"];
+    const P_NAE_PSICO = ["NAE - Atendimento Psicológico", "Coordenador"];
+    const P_NAE_SOCIAL = ["NAE - Assistente Social", "Coordenador"];
+    const P_NAPNE = ["NAPNE", "Coordenador"];
+    const P_NEPGES = ["NEPGES", "Coordenador"];
+    const P_NEABI = ["NEABI", "Coordenador"];
+
     setPerguntas([
-      { id: generateId(), tipo: "texto_longo", enunciado: "Fragilidades e positividades da turma (Visão Geral)", perfis: todasPermissoes },
-      { id: generateId(), tipo: "multipla", enunciado: "Quais são as POTENCIALIDADES da turma?", opcoes: ["Engajamento", "Respeito", "Participação", "Notas Boas"], perfis: todasPermissoes },
-      { id: generateId(), tipo: "multipla", enunciado: "Quais são as FRAGILIDADES da turma?", opcoes: ["Conversas", "Faltas", "Desinteresse", "Dificuldade Técnica"], perfis: todasPermissoes },
-      { id: generateId(), tipo: "texto_longo", enunciado: "Relação de Estudantes DESTAQUES (Cite os nomes):", perfis: todasPermissoes },
-      { id: generateId(), tipo: "texto_longo", enunciado: "Relação de Estudantes INFREQUENTES (Cite os nomes):", perfis: todasPermissoes },
-      // Exemplo de pergunta específica
-      { id: generateId(), tipo: "texto_longo", enunciado: "Parecer do Psicólogo (NAE):", perfis: ["NAE - Atendimento Psicológico", "Coordenador"] },
-    ]);
-  };
-
-  // --- 3. MANIPULAÇÃO DAS PERGUNTAS ---
-  const addPergunta = (tipo) => {
-    setPerguntas((prev) => [
-      ...prev,
-      {
-        id: generateId(),
-        tipo,
-        enunciado: "",
-        opcoes: tipo === "multipla" ? ["Sim", "Não"] : undefined,
-        perfis: [...CARGOS_SISTEMA] // Nasce visível para todos
+      { id: generateId(), tipo: "texto_longo", enunciado: "Qual(is) é(são) o(s) estudante(s) destaque(s)?", perfis: P_DOCENTE },
+      { id: generateId(), tipo: "texto_longo", enunciado: "Qual(is) é(são) o(s) estudante(s) infrequente(s)?", perfis: P_DOCENTE },
+      { 
+        id: generateId(), 
+        tipo: "multipla", 
+        enunciado: "1. Quais são as potencialidades da turma?", 
+        opcoes: ["Engajamento", "Colaboração", "Participação", "Respeito mútuo", "Motivados", "Outro"], 
+        perfis: P_DOCENTE 
       },
+      { 
+        id: generateId(), 
+        tipo: "multipla", 
+        enunciado: "2. Quais são as fragilidades da turma?", 
+        opcoes: ["Baixo envolvimento", "Dificuldade colaboração", "Falta de respeito", "Frequência irregular", "Procrastinação", "Outro"], 
+        perfis: P_DOCENTE 
+      },
+      { id: generateId(), tipo: "multipla", enunciado: "3. Sugere encaminhamento ao psicológico?", opcoes: ["Sim", "Não"], perfis: P_DOCENTE },
+      { id: generateId(), tipo: "texto_longo", enunciado: "3.1. Se sim, qual(is) estudante(s) sugere para o psicológico?", perfis: P_DOCENTE },
+      { id: generateId(), tipo: "texto_longo", enunciado: "4. Qual(is) discente(s) apresenta(m) maior dificuldade de aprendizagem?", perfis: P_DOCENTE },
+      { id: generateId(), tipo: "texto_longo", enunciado: "5. Quais estudantes não atingiram a média no trimestre?", perfis: P_DOCENTE },
+      { id: generateId(), tipo: "texto_longo", enunciado: "7. (NAE Social) Qual(is) estudante(s) atendido(s) pelo Serviço Social?", perfis: P_NAE_SOCIAL },
+      { id: generateId(), tipo: "texto_longo", enunciado: "8. (NAE Psico) Qual(is) estudante(s) atendido(s) pelo serviço psicológico?", perfis: P_NAE_PSICO },
+      { id: generateId(), tipo: "texto_longo", enunciado: "9. (NAPNE) Relação de discentes com necessidades específicas:", perfis: P_NAPNE },
+      { id: generateId(), tipo: "multipla", enunciado: "10. (NEPGES) Ações sobre gênero e sexualidade?", opcoes: ["Sim", "Não"], perfis: P_NEPGES },
+      { id: generateId(), tipo: "texto_longo", enunciado: "10.1. Relate as ações:", perfis: P_NEPGES },
+      { id: generateId(), tipo: "multipla", enunciado: "11. (NEABI) Ações sobre relações étnico-raciais?", opcoes: ["Sim", "Não"], perfis: P_NEABI },
+      { id: generateId(), tipo: "texto_longo", enunciado: "11.1. Relate as ações:", perfis: P_NEABI }
     ]);
   };
 
-  const removePergunta = (id) => {
-    setPerguntas(prev => prev.filter(p => p.id !== id));
+  // --- FUNÇÕES DE MANIPULAÇÃO ---
+  const addPergunta = (tipo) => {
+    setPerguntas([...perguntas, { 
+      id: generateId(), 
+      tipo, 
+      enunciado: "", 
+      opcoes: tipo === "multipla" ? ["Sim", "Não"] : undefined, 
+      perfis: [...CARGOS_SISTEMA] 
+    }]);
   };
+
+  const removePergunta = (id) => setPerguntas(perguntas.filter(p => p.id !== id));
 
   const updatePergunta = (id, campo, valor) => {
-    setPerguntas(prev => prev.map(p => p.id === id ? { ...p, [campo]: valor } : p));
+    setPerguntas(perguntas.map(p => p.id === id ? { ...p, [campo]: valor } : p));
   };
 
-  const toggleCargoPergunta = (idPergunta, cargo) => {
-    setPerguntas(prev => prev.map(p => {
-        if (p.id !== idPergunta) return p;
-        const perfis = p.perfis || [];
-        const novos = perfis.includes(cargo) ? perfis.filter(c => c !== cargo) : [...perfis, cargo];
-        return { ...p, perfis: novos };
+  const toggleCargo = (idPergunta, cargo) => {
+    setPerguntas(perguntas.map(p => {
+      if (p.id !== idPergunta) return p;
+      const novosPerfis = p.perfis.includes(cargo) 
+        ? p.perfis.filter(c => c !== cargo) 
+        : [...p.perfis, cargo];
+      return { ...p, perfis: novosPerfis };
     }));
   };
 
-  // --- 4. AÇÕES (Salvar, Editar, Excluir, Visualizar) ---
-
+  // --- SALVAR, EDITAR E EXCLUIR ---
   const salvarFormulario = async () => {
-    if (!titulo.trim() || perguntas.length === 0) return alert("Preencha título e perguntas.");
-
-    // Se estiver editando, poderíamos fazer um PUT, mas por simplificação vamos criar novo ou deletar antigo.
-    // Aqui manteremos o POST (Criar Novo) como padrão do Admin.
-    
+    if (!titulo.trim() || perguntas.length === 0) return alert("Preencha título e questões.");
     try {
-        const res = await fetch('http://localhost:5000/formularios', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ titulo, descricao, perguntas })
-        });
-
-        if (res.ok) {
-            alert("✅ Salvo com sucesso!");
-            setTitulo("Novo Modelo");
-            setDescricao("");
-            setPerguntas([]);
-            setEditandoId(null);
-            carregarFormularios();
-        }
-    } catch (e) { alert("Erro de conexão."); }
+      const res = await fetch('http://localhost:5000/formularios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titulo, descricao, perguntas })
+      });
+      if (res.ok) {
+        alert("✅ Formulário salvo com sucesso!");
+        setEditandoId(null);
+        setTitulo("Conselho de Classe — Modelo Novo");
+        setPerguntas([]);
+        carregarFormularios();
+      }
+    } catch (e) { alert("Erro ao salvar."); }
   };
 
-  // Carrega os dados para os inputs lá de cima
   const handleEditar = (form) => {
-      setTitulo(form.titulo);
-      setDescricao(form.descricao || "");
-      setPerguntas(form.perguntas);
-      setEditandoId(form.id);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    setEditandoId(form.id);
+    setTitulo(form.titulo);
+    setDescricao(form.descricao || "");
+    setPerguntas(form.perguntas);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleExcluir = async (id) => {
-      if(window.confirm("Tem certeza que deseja apagar este formulário?")) {
-          await fetch(`http://localhost:5000/formularios/${id}`, { method: 'DELETE' });
-          carregarFormularios();
+    if (!window.confirm("Deseja apagar permanentemente este modelo?")) return;
+    try {
+      const res = await fetch(`http://localhost:5000/formularios/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert("Excluído!");
+        carregarFormularios();
       }
-  };
-
-  const handleVisualizar = (form) => {
-      setFormPreview(form);
-      setPreviewOpen(true);
+    } catch (e) { alert("Erro ao excluir."); }
   };
 
   return (
-    <div className="space-y-6 p-4">
-      
-      {/* --- ÁREA DE EDIÇÃO (TOPO) --- */}
-      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-        <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">{editandoId ? "✏️ Editando Modelo" : "📝 Criar Novo Modelo"}</h2>
-            <button onClick={gerarModeloPadrao} className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded border border-blue-200 hover:bg-blue-200">
-                📄 Carregar Modelo Oficial
-            </button>
-        </div>
-        
-        <div className="space-y-4 mb-6">
-            <input className="w-full p-2 border rounded font-bold text-lg" value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Título do Formulário" />
-            <textarea className="w-full p-2 border rounded" value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Descrição" rows={2} />
-        </div>
-
-        {/* BARRA DE FERRAMENTAS */}
-        <div className="flex gap-2 mb-6 bg-gray-50 p-3 rounded border">
-            <span className="text-sm font-bold pt-1 uppercase text-gray-500 mr-2">Adicionar:</span>
-            <button onClick={() => addPergunta("texto")} className="px-3 py-1 bg-white border rounded hover:bg-gray-100 shadow-sm">+ Curto</button>
-            <button onClick={() => addPergunta("texto_longo")} className="px-3 py-1 bg-white border rounded hover:bg-gray-100 shadow-sm">+ Longo</button>
-            <button onClick={() => addPergunta("multipla")} className="px-3 py-1 bg-white border rounded hover:bg-gray-100 shadow-sm">+ Múltipla</button>
+    <div className="max-w-5xl mx-auto p-4 space-y-10">
+      {/* EDITOR DE FORMULÁRIO */}
+      <div className="bg-white p-6 rounded-xl shadow-xl border border-gray-200">
+        <div className="flex justify-between items-center mb-8 border-b pb-4">
+          <h1 className="text-2xl font-bold text-gray-800">
+            {editandoId ? "✏️ Editando Modelo" : "📝 Criar Novo Questionário"}
+          </h1>
+          <button 
+            onClick={gerarModeloPadrao} 
+            className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-indigo-700 shadow-md transition-all flex items-center gap-2"
+          >
+            📄 Carregar Modelo Oficial
+          </button>
         </div>
 
-        {/* LISTA DE PERGUNTAS */}
+        <div className="grid gap-6 mb-8">
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase">Título do Formulário</label>
+            <input 
+              className="w-full text-xl font-bold border-b-2 border-gray-100 p-2 outline-none focus:border-indigo-500 transition-all" 
+              value={titulo} 
+              onChange={e => setTitulo(e.target.value)} 
+              placeholder="Ex: Conselho de Classe 2026"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase">Descrição/Instruções</label>
+            <textarea 
+              className="w-full p-3 border rounded-lg bg-gray-50 focus:bg-white transition-all outline-none" 
+              value={descricao} 
+              onChange={e => setDescricao(e.target.value)} 
+              rows={2}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3 mb-8 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+          <span className="text-sm font-bold text-indigo-800 w-full mb-1">Adicionar Pergunta:</span>
+          <button onClick={() => addPergunta("texto")} className="bg-white border-2 border-indigo-200 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100">+ Texto Curto</button>
+          <button onClick={() => addPergunta("texto_longo")} className="bg-white border-2 border-indigo-200 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100">+ Texto Longo / Alunos</button>
+          <button onClick={() => addPergunta("multipla")} className="bg-white border-2 border-indigo-200 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100">+ Múltipla Escolha</button>
+        </div>
+
         <div className="space-y-6">
-            {perguntas.length === 0 && <p className="text-center text-gray-400 py-4">Nenhuma pergunta adicionada.</p>}
-            
-            {perguntas.map((p, index) => (
-                <div key={p.id} className="bg-white p-4 rounded border border-gray-300 shadow-sm relative group hover:border-blue-400 transition">
-                    <span className="absolute left-[-25px] top-2 font-bold text-gray-400">{index + 1}.</span>
-                    
-                    {/* Cabeçalho */}
-                    <div className="flex justify-between items-start mb-3 gap-4">
-                        <div className="flex-1">
-                            <label className="text-xs font-bold text-gray-500 uppercase">Enunciado</label>
-                            <input 
-                                className="w-full border-b border-gray-300 p-1 focus:border-black outline-none font-medium"
-                                value={p.enunciado}
-                                onChange={(e) => updatePergunta(p.id, "enunciado", e.target.value)}
-                                placeholder="Digite a pergunta..."
-                            />
-                        </div>
-                        <button onClick={() => removePergunta(p.id)} className="text-red-500 hover:text-red-700 text-xs font-bold border border-red-100 px-2 py-1 rounded bg-red-50">EXCLUIR</button>
-                    </div>
-
-                    {/* Opções (Múltipla) */}
-                    {p.tipo === "multipla" && (
-                        <div className="mb-3 bg-yellow-50 p-2 rounded border border-yellow-100">
-                            <label className="text-xs font-bold text-yellow-800">Opções (separadas por vírgula)</label>
-                            <input 
-                                className="w-full border p-1 rounded bg-white text-sm"
-                                value={(p.opcoes || []).join(", ")}
-                                onChange={(e) => updatePergunta(p.id, "opcoes", e.target.value.split(','))}
-                            />
-                        </div>
-                    )}
-
-                    {/* SELETOR DE CARGOS */}
-                    <div className="border-t pt-2 mt-2">
-                        <div className="text-xs font-bold text-blue-800 uppercase mb-2 flex items-center gap-2">
-                            🔒 Quem responde? <span className="text-gray-400 font-normal normal-case">(Selecione os cargos)</span>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-blue-50 p-3 rounded">
-                            {CARGOS_SISTEMA.map(cargo => {
-                                const checked = (p.perfis || []).includes(cargo);
-                                return (
-                                    <label key={cargo} className={`flex items-center gap-2 text-[11px] cursor-pointer select-none ${checked ? 'font-bold text-blue-900' : 'text-gray-500 opacity-70'}`}>
-                                        <input 
-                                            type="checkbox" 
-                                            checked={checked} 
-                                            onChange={() => toggleCargoPergunta(p.id, cargo)}
-                                            className="accent-blue-600"
-                                        />
-                                        {cargo}
-                                    </label>
-                                )
-                            })}
-                        </div>
-                        {(p.perfis || []).length === 0 && <p className="text-xs text-red-600 mt-1 font-bold">⚠️ Atenção: Ninguém verá esta pergunta.</p>}
-                    </div>
+          {perguntas.map((p, idx) => (
+            <div key={p.id} className="p-5 bg-white border-2 border-gray-100 rounded-xl shadow-sm hover:border-indigo-200 transition-all relative group">
+              <div className="flex justify-between gap-4 mb-5">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="bg-gray-800 text-white text-[10px] px-2 py-0.5 rounded-full">Q{idx + 1}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase">{p.tipo}</span>
+                  </div>
+                  <input 
+                    className="w-full border-b-2 border-transparent font-semibold p-1 outline-none focus:border-indigo-500 text-gray-700" 
+                    value={p.enunciado} 
+                    onChange={e => updatePergunta(p.id, "enunciado", e.target.value)} 
+                    placeholder="Digite o enunciado da pergunta..." 
+                  />
                 </div>
-            ))}
+                <button onClick={() => removePergunta(p.id)} className="text-gray-300 hover:text-red-500 transition-colors">🗑️</button>
+              </div>
+
+              {p.tipo === "multipla" && (
+                <div className="mb-5 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                  <label className="text-[10px] font-bold text-amber-700 uppercase block mb-1">Opções (separe com vírgula)</label>
+                  <input 
+                    className="w-full border p-2 rounded bg-white text-sm" 
+                    value={(p.opcoes || []).join(", ")} 
+                    onChange={e => updatePergunta(p.id, "opcoes", e.target.value.split(','))} 
+                  />
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-dashed">
+                <p className="text-[10px] font-bold text-gray-400 uppercase mb-3">Quem deve responder esta pergunta?</p>
+                <div className="flex flex-wrap gap-2">
+                  {CARGOS_SISTEMA.map(cargo => {
+                    const ativo = p.perfis.includes(cargo);
+                    return (
+                      <button 
+                        key={cargo} 
+                        onClick={() => toggleCargo(p.id, cargo)} 
+                        className={`text-[10px] px-3 py-1 rounded-full border-2 transition-all font-bold ${ativo ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300'}`}
+                      >
+                        {cargo}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-6 flex justify-end gap-2 border-t pt-4">
-            {editandoId && (
-                <button onClick={() => { setEditandoId(null); setTitulo("Novo Modelo"); setPerguntas([]); }} className="bg-gray-200 text-gray-700 px-4 py-2 rounded">
-                    Cancelar Edição
-                </button>
-            )}
-            <button onClick={salvarFormulario} className="bg-black text-white px-6 py-2 rounded font-bold hover:bg-gray-800 shadow-lg">
-                {editandoId ? "Salvar Como Novo" : "Salvar Modelo"}
-            </button>
-        </div>
+        <button 
+          onClick={salvarFormulario} 
+          className="mt-10 w-full bg-emerald-600 text-white py-4 rounded-xl font-black text-lg hover:bg-emerald-700 shadow-lg transition-all active:scale-[0.98]"
+        >
+          {editandoId ? "ATUALIZAR MODELO" : "SALVAR MODELO NO SISTEMA"}
+        </button>
       </div>
 
-      {/* --- LISTA DE MODELOS SALVOS (BAIXO) --- */}
-      <div className="bg-white p-6 rounded-lg shadow-md border mt-8">
-          <h3 className="font-bold text-lg mb-4 text-gray-800 border-b pb-2">Modelos Disponíveis no Banco</h3>
-          
-          {listaFormularios.length === 0 ? <p className="text-gray-500 italic">Nenhum modelo salvo.</p> : (
-            <div className="grid gap-3">
-              {listaFormularios.map(f => (
-                  <div key={f.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 border rounded hover:bg-gray-50 transition">
-                      <div className="mb-2 md:mb-0">
-                          <div className="font-bold text-blue-900 text-lg">{f.titulo}</div>
-                          <div className="text-sm text-gray-500">{f.descricao}</div>
-                          <div className="text-xs text-gray-400 mt-1">{f.perguntas.length} questões</div>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                          <button onClick={() => handleVisualizar(f)} className="px-3 py-1 bg-white border border-gray-300 rounded text-gray-600 hover:bg-gray-100 text-sm flex items-center gap-1">
-                              👁️ <span className="hidden md:inline">Visualizar</span>
-                          </button>
-                          
-                          <button onClick={() => handleEditar(f)} className="px-3 py-1 bg-blue-50 border border-blue-200 rounded text-blue-600 hover:bg-blue-100 text-sm flex items-center gap-1">
-                              ✏️ <span className="hidden md:inline">Editar</span>
-                          </button>
-                          
-                          <button onClick={() => handleExcluir(f.id)} className="px-3 py-1 bg-red-50 border border-red-200 rounded text-red-600 hover:bg-red-100 text-sm">
-                              🗑️
-                          </button>
-                      </div>
-                  </div>
-              ))}
+      {/* LISTA DE MODELOS SALVOS */}
+      <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
+        <h3 className="font-bold text-xl mb-6 text-gray-800 flex items-center gap-2">
+          📚 Modelos Disponíveis <span className="text-sm font-normal text-gray-400">({listaFormularios.length})</span>
+        </h3>
+        <div className="grid gap-4">
+          {listaFormularios.map(f => (
+            <div key={f.id} className="flex justify-between items-center p-5 border-2 border-gray-50 rounded-xl hover:bg-gray-50 transition-all group">
+              <div>
+                <h4 className="font-bold text-indigo-900 group-hover:text-indigo-600 transition-colors">{f.titulo}</h4>
+                <p className="text-xs text-gray-400">{f.perguntas.length} questões configuradas</p>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => handleEditar(f)} 
+                  className="bg-white border-2 border-indigo-100 text-indigo-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                >
+                  👁️ Visualizar / Editar
+                </button>
+                <button 
+                  onClick={() => handleExcluir(f.id)} 
+                  className="bg-white border-2 border-red-50 border-red-50 text-red-400 px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-500 hover:text-white transition-all"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
+          {listaFormularios.length === 0 && (
+            <div className="text-center py-10 text-gray-400 border-2 border-dashed rounded-xl">
+              Nenhum modelo salvo. Use o botão "Carregar Modelo Oficial" acima para começar.
             </div>
           )}
-      </div>
-
-      {/* --- MODAL DE VISUALIZAÇÃO/TESTE --- */}
-      {previewOpen && formPreview && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col">
-                <div className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
-                    <h3 className="font-bold text-lg">Visualizando: {formPreview.titulo}</h3>
-                    <button onClick={() => setPreviewOpen(false)} className="text-xl font-bold text-gray-500 hover:text-black">✕</button>
-                </div>
-                
-                <div className="p-6 space-y-6">
-                    {formPreview.perguntas.map((p, idx) => (
-                        <div key={idx} className="border-b pb-4">
-                            <p className="font-bold text-gray-800 mb-1">{idx + 1}. {p.enunciado}</p>
-                            <p className="text-xs text-blue-600 mb-2">
-                                🔒 Visível para: {(p.perfis || []).join(", ")}
-                            </p>
-                            
-                            {p.tipo === 'texto' && <input disabled className="w-full border p-2 rounded bg-gray-100" placeholder="Resposta..." />}
-                            {p.tipo === 'texto_longo' && <textarea disabled className="w-full border p-2 rounded bg-gray-100" rows={2} placeholder="Resposta longa..." />}
-                            {p.tipo === 'multipla' && (
-                                <div className="flex gap-4">
-                                    {p.opcoes?.map(op => (
-                                        <div key={op} className="flex items-center gap-1">
-                                            <input type="checkbox" disabled /> 
-                                            <span className="text-gray-500">{op}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-                <div className="p-4 border-t bg-gray-50 text-right rounded-b-xl">
-                    <button onClick={() => setPreviewOpen(false)} className="bg-black text-white px-4 py-2 rounded">Fechar</button>
-                </div>
-            </div>
         </div>
-      )}
-
+      </div>
     </div>
   );
 }

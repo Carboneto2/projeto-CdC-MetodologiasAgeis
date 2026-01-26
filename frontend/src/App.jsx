@@ -4,7 +4,7 @@ import { AuthProvider, AuthContext } from './context/AuthContext';
 
 import { Navbar } from './components/Navbar';
 import { LoginView } from './views/LoginView';
-import { Dashboard } from './views/Dashboard';
+import Dashboard from "./views/Dashboard";
 import TurmasView from './views/TurmasView';
 import AlunosView from './views/AlunosView';
 import FormBuilderView from './views/FormBuilderView'; 

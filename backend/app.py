@@ -154,6 +154,15 @@ def respostas():
             
         return jsonify(lista_respostas), 200
 
+@app.route('/turmas', methods=['GET'])
+def listar_turmas_dash():
+    # Se você tiver uma tabela de turmas no banco, use o SELECT. 
+    # Caso contrário, retorne uma lista fixa baseada nos nomes que você já usa.
+    conn = get_db()
+    rows = conn.execute('SELECT id, nome FROM Turma').fetchall() # Ajuste se sua tabela for diferente
+    conn.close()
+    return jsonify([dict(r) for r in rows]), 200
+
 if __name__ == '__main__':
     # Não vamos apagar o banco dessa vez, só rodar
     init_db_automatico() 
