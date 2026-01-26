@@ -38,9 +38,7 @@ return (
                     <Link to="/comparacao" className="nav-link">Relatórios</Link>
                     <Link to="/usuarios" className="nav-link">Usuários</Link>
 
-                    <Link to="/area-restrita" className="nav-link secondary">
-                        Visão Docente
-                    </Link>
+                    <Link to="/area-restrita" className="nav-link secondary">Visão Docente</Link>
                 </>
             ) : (
                 <Link to="/area-restrita" className="nav-link destaque">
