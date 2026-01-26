@@ -1,44 +1,164 @@
+/* Fundo geral */
 .login-wrapper {
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #f0f2f5;
+    background: linear-gradient(
+        135deg,
+        #1b5e20 0%,
+        #2e7d32 45%,
+        #ffffff 45%,
+        #ffffff 100%
+    );
 }
 
-.login-card {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+/* Container */
+.login-container {
     width: 100%;
-    max-width: 400px;
+    max-width: 440px;
+    padding: 1.5rem;
+}
+
+/* Card */
+.login-card {
+    position: relative;
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 3.2rem 2.2rem 2rem; /* mais espaço em cima */
+    box-shadow: 0 22px 45px rgba(0, 0, 0, 0.18);
     text-align: center;
+    overflow: hidden; /* ESSENCIAL para cortar o vermelho arredondado */
 }
 
-.login-card h1 {
+
+/* faixa vermelha em cima */
+.login-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 8px; /* mais fino */
+    background-color: #c62828;
+    clip-path: ellipse(120% 100% at 50% 0%);
+}
+
+
+
+
+
+
+/* Logo IF */
+.login-logo {
+    width: 70px;
+    height: 70px;
+    margin: 0 auto 1.2rem;
+    border-radius: 50%;
+    background-color: #1b5e20;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Cabeçalho */
+.login-header h1 {
+    color: #1b5e20;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+}
+
+.login-header p {
+    color: #000;
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 2rem;
+}
+
+/* Erro */
+.login-error {
+    color: #c62828;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+}
+
+/* Inputs */
+.input-group {
+    display: flex;
+    flex-direction: column;
     margin-bottom: 1.5rem;
-    color: #333;
-}
-
-.input-block {
-    margin-bottom: 1rem;
     text-align: left;
 }
 
+.input-group label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+    color: #000;
+}
+
+.input-group input {
+    padding: 0.75rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid #c8e6c9;
+    font-size: 1rem;
+    background-color: #f9f9f9;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #2e7d32;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.15);
+}
+
+/* Botão */
 .btn-entrar {
     width: 100%;
     padding: 1rem;
-    background-color: #2E7D32; /* Verde Institucional */
-    color: white;
+    background-color: #2e7d32;
+    color: #ffffff;
     border: none;
-    border-radius: 4px;
-    font-size: 1rem;
+    border-radius: 14px; /* mais arredondado */
+    font-size: 1.05rem;
+    font-weight: 700;
     cursor: pointer;
-    margin-top: 1rem;
-    transition: background 0.2s;
+    margin-top: 0.8rem;
+    transition: background-color 0.2s ease;
 }
 
 .btn-entrar:hover {
     background-color: #1b5e20;
+}
+
+/* Rodapé */
+.login-footer {
+    margin-top: 2rem;
+    font-size: 0.75rem;
+    color: #555;
+}
+
+/* Responsivo */
+@media (max-width: 480px) {
+    .login-card {
+        padding: 2.2rem 1.6rem;
+    }
+
+    .login-header h1 {
+        font-size: 1.6rem;
+    }
+
+.input-group input {
+    background-color: #f4f8f4;
+    border: 1px solid #2e7d32;
+}
+
+.input-group input:focus {
+    background-color: #ffffff;
+}
+
 }
