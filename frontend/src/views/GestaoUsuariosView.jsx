@@ -18,7 +18,7 @@ export default function GestaoUsuariosView() {
 
     const carregarUsuarios = async () => {
         try {
-            const res = await fetch('http://localhost:5000/usuarios');
+            const res = await fetch('http://localhost:5000/usuarios');  
             if(res.ok) setUsuarios(await res.json());
         } catch (e) { console.error(e); }
     };

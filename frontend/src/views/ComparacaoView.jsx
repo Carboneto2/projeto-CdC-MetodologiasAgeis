@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react'; // Adicionei useRef aqui se não estiver
 import { useTurmas } from "../hooks/useTurmas";
 import { useAlunos } from "../hooks/useAlunos";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { useRef } from "react";
-
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function ComparacaoView() {
@@ -12,8 +10,9 @@ export default function ComparacaoView() {
   const { alunos } = useAlunos();
 
   // Estados dos Dados
-  const [formularios, setFormularios] = useState([]); // Modelos das perguntas
-  const [todasRespostas, setTodasRespostas] = useState([]); // Respostas vindas do banco
+  const [formularios, setFormularios] = useState([]); 
+  const [todasRespostas, setTodasRespostas] = useState([]); 
+  const [usuarios, setUsuarios] = useState([]); // <--- CORRIGIDO: useState (era userState)
 
   // Filtros
   const [filtroTurma, setFiltroTurma] = useState("");
@@ -24,89 +23,97 @@ export default function ComparacaoView() {
 
   // --- 1. CARREGAR DADOS DO BACKEND ---
   useEffect(() => {
-    // Busca Modelos de Formulário (para saber os enunciados)
+    // Busca Modelos
     fetch('http://localhost:5000/formularios')
         .then(res => res.json())
         .then(data => setFormularios(data));
 
-    // Busca Respostas (para saber o que escreveram)
+    // Busca Respostas
     fetch('http://localhost:5000/respostas')
         .then(res => res.json())
         .then(data => setTodasRespostas(data));
+
+    // Busca Usuários (para pegar os nomes)
+    fetch('http://localhost:5000/usuarios')
+        .then(res => res.json())
+        .then(data => setUsuarios(data))
+        .catch(err => console.error("Erro ao carregar usuários:", err));
+    
   }, []);
 
-    //funçao para gerar os pdfs
-        const gerarPDF = async () => {
-        if (!relatorioRef.current) return;
+  // Função para gerar PDF (mantida igual)
+  const gerarPDF = async () => {
+    if (!relatorioRef.current) return;
+    const canvas = await html2canvas(relatorioRef.current, {
+        scale: 2,
+        useCORS: true,
+        ignoreElements: (element) => element.classList?.contains("no-print"),
+    });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
 
-        const canvas = await html2canvas(relatorioRef.current, {
-            scale: 2,
-            useCORS: true,
-            ignoreElements: (element) =>
-            element.classList?.contains("no-print"),
-        });
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
 
-        const imgData = canvas.toDataURL("image/png");
-
-        const pdf = new jsPDF("p", "mm", "a4");
-
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-
-        const imgWidth = pageWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-        let heightLeft = imgHeight;
-        let position = 0;
-
+    while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
         pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
-
-        while (heightLeft > 0) {
-            position -= pageHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-        }
-
-        pdf.save(`relatorio-turma-${filtroTurma}.pdf`);
-        };
-
-
+    }
+    pdf.save(`relatorio-turma-${filtroTurma}.pdf`);
+  };
 
   // --- 2. PROCESSAMENTO DOS DADOS ---
   
-  // A. Estatísticas da Turma (Alunos)
+  // A. Estatísticas da Turma
   const statsTurma = useMemo(() => {
       if (!filtroTurma) return null;
       const alunosDaTurma = alunos.filter(a => String(a.turmaId) === String(filtroTurma));
       const total = alunosDaTurma.length;
       if (total === 0) return null;
 
-      // Exemplo simples de lógica de risco (ajuste conforme sua regra)
-      // Vamos supor que temos notas nos alunos, ou apenas contagem
       return {
           total,
-          emRisco: Math.floor(total * 0.2), // Simulação: 20% em risco
+          emRisco: Math.floor(total * 0.2),
           bons: Math.floor(total * 0.5),
           excelentes: Math.floor(total * 0.3)
       };
   }, [alunos, filtroTurma]);
 
-  // B. Consolidação das Respostas do Formulário
+  // B. Consolidação das Respostas
   const relatorioQualitativo = useMemo(() => {
       if (!filtroForm || !filtroTurma) return null;
 
       const modelo = formularios.find(f => String(f.id) === String(filtroForm));
       if (!modelo) return null;
 
-      // Filtra respostas apenas desta turma e deste formulário
+      // 1. Filtra respostas APENAS desta turma e formulário
       const respostasFiltradas = todasRespostas.filter(r => 
           String(r.formulario_id) === String(filtroForm) && 
           String(r.turma_id) === String(filtroTurma)
       );
 
-      // Agrupa as respostas por pergunta
+      // 2. Extrai os nomes CORRETAMENTE
+      // Mapeamos as respostas filtradas e procuramos o usuário dono daquela resposta
+      const listaDeNomes = respostasFiltradas.map(resposta => {
+          // Tenta achar o usuário pelo ID salvo na resposta (ajuste 'usuario_id' conforme seu banco)
+          const usuarioEncontrado = usuarios.find(u => String(u.id) === String(resposta.usuario_id));
+          
+          // Se achar o usuário, retorna o nome dele. Se não, tenta pegar direto da resposta ou retorna 'Anônimo'
+          return usuarioEncontrado ? usuarioEncontrado.nome : (resposta.autor || "Não identificado");
+      });
+
+      // Remove duplicatas (caso a mesma pessoa tenha respondido 2x, opcional)
+      const nomesUnicos = [...new Set(listaDeNomes)];
+
+      // 3. Agrupa as respostas por pergunta
       const consolidado = modelo.perguntas.map(pergunta => {
           const respostasDestaPergunta = respostasFiltradas.map(r => r.respostas[pergunta.id]).filter(Boolean);
           
@@ -120,20 +127,18 @@ export default function ComparacaoView() {
 
       return {
           totalParticipantes: respostasFiltradas.length,
+          nomesParticipantes: nomesUnicos, // Usando a lista filtrada
           questoes: consolidado
       };
 
-  }, [formularios, todasRespostas, filtroForm, filtroTurma]);
-
-  // Cores para gráficos
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  }, [formularios, todasRespostas, usuarios, filtroForm, filtroTurma]); // Adicionei usuarios na dependência
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-800">Relatórios do Conselho</h2>
           <div className="text-sm text-gray-500">
-              Respostas Recebidas: <span className="font-bold text-black">{todasRespostas.length}</span>
+              Respostas no Banco: <span className="font-bold text-black">{todasRespostas.length}</span>
           </div>
       </div>
 
@@ -167,7 +172,8 @@ export default function ComparacaoView() {
       {/* --- CONTEÚDO DO RELATÓRIO --- */}
       {filtroTurma && filtroForm && relatorioQualitativo ? (
             <div ref={relatorioRef} className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-white p-4"> 
-              {/* COLUNA ESQUERDA: DADOS DA TURMA (Instâncias) */}
+              
+              {/* COLUNA ESQUERDA */}
               <div className="space-y-6">
                   <div className="bg-white p-5 rounded-lg shadow border-l-4 border-blue-900">
                       <h3 className="font-bold text-lg mb-2">Visão da Turma</h3>
@@ -181,6 +187,7 @@ export default function ComparacaoView() {
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
+                                            isAnimationActive={false} // Importante para PDF
                                             data={[
                                                 {name: 'Em Risco', value: statsTurma.emRisco},
                                                 {name: 'Regulares', value: statsTurma.bons},
@@ -188,16 +195,15 @@ export default function ComparacaoView() {
                                             ]}
                                             cx="50%" cy="50%" innerRadius={40} outerRadius={70} fill="#8884d8" paddingAngle={5} dataKey="value"
                                         >
-                                            <Cell fill="#FF8042" /> {/* Risco */}
-                                            <Cell fill="#0088FE" /> {/* Bons */}
-                                            <Cell fill="#00C49F" /> {/* Excelentes */}
+                                            <Cell fill="#FF8042" />
+                                            <Cell fill="#0088FE" />
+                                            <Cell fill="#00C49F" />
                                         </Pie>
                                         <Tooltip />
                                         <Legend verticalAlign="bottom" height={36}/>
                                     </PieChart>
                                 </ResponsiveContainer>
                               </div>
-                              <p className="text-xs text-gray-500 text-center">Simulação baseada no cadastro de alunos.</p>
                           </div>
                       )}
                   </div>
@@ -205,11 +211,29 @@ export default function ComparacaoView() {
                   <div className="bg-blue-50 p-5 rounded-lg border border-blue-100">
                       <h3 className="font-bold text-blue-900 mb-1">Participação</h3>
                       <p className="text-3xl font-bold">{relatorioQualitativo.totalParticipantes}</p>
-                      <p className="text-sm text-blue-700">Respostas enviadas por docentes/equipe.</p>
+                      <p className="text-sm text-blue-700 mb-4">Respostas enviadas.</p>
+                      
+                      {/* LISTA DE NOMES AQUI */}
+                      <div className="border-t border-blue-200 pt-3">
+                            <p className="text-xs font-bold text-blue-800 uppercase mb-2">Respondentes:</p>
+                            
+                            {relatorioQualitativo.nomesParticipantes.length > 0 ? (
+                                <ul className="text-sm text-blue-900 space-y-1 max-h-60 overflow-y-auto custom-scrollbar">
+                                    {relatorioQualitativo.nomesParticipantes.map((nome, index) => (
+                                        <li key={index} className="flex items-center gap-2">
+                                            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0"></span>
+                                            <span>{nome}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <span className="text-xs text-blue-400 italic">Nenhum nome registrado</span>
+                            )}
+                        </div>
                   </div>
               </div>
 
-              {/* COLUNA DIREITA: RESPOSTAS DO FORMULÁRIO (Qualitativo) */}
+              {/* COLUNA DIREITA */}
               <div className="lg:col-span-2 space-y-4">
                   {relatorioQualitativo.questoes.map((q, idx) => (
                       <div key={q.id} className="bg-white p-5 rounded-lg shadow-sm border hover:border-blue-300 transition">
@@ -222,7 +246,6 @@ export default function ComparacaoView() {
                               <p className="text-gray-400 italic text-sm">Sem respostas para esta questão.</p>
                           ) : (
                               <div className="space-y-2">
-                                  {/* SE FOR LISTA DE NOMES (Citações) */}
                                   {q.enunciado.includes("Cite") || q.enunciado.includes("Quais") ? (
                                       <div className="flex flex-wrap gap-2">
                                           {q.respostas.join(', ').split(', ').filter(Boolean).map((nome, i) => (
@@ -232,7 +255,6 @@ export default function ComparacaoView() {
                                           ))}
                                       </div>
                                   ) : (
-                                      /* RESPOSTAS NORMAIS */
                                       <ul className="list-disc list-inside space-y-1">
                                           {q.respostas.map((resp, i) => (
                                               <li key={i} className="text-gray-700 text-sm bg-gray-50 p-2 rounded">
@@ -243,7 +265,6 @@ export default function ComparacaoView() {
                                   )}
                               </div>
                           )}
-                          
                       </div>   
                   ))}
                     <button
@@ -254,11 +275,10 @@ export default function ComparacaoView() {
                     📄 Gerar PDF
                     </button>
               </div>
-         
           </div>
       ) : (
           <div className="text-center py-20 bg-gray-50 border-2 border-dashed rounded-xl">
-              <p className="text-xl text-gray-400 font-medium">Selecione uma Turma e um Questionário acima para gerar o relatório.</p>
+              <p className="text-xl text-gray-400 font-medium">Selecione uma Turma e um Questionário acima.</p>
           </div>
       )}
     </div>
