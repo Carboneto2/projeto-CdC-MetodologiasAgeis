@@ -1,0 +1,48 @@
+========================================================= DOCUMENTAÇÃO DA 3ª SPRINT - LOCALIZAÇÃO DAS TAREFAS
+Esta documentação detalha as entregas da Terceira Sprint, focada em segurança (Autenticação/Perfis), análise de dados avançada (Relatórios Dinâmicos) e usabilidade institucional (Modelo Oficial Completo e PDFs).
+
+PBI-05: Gestão de Acessos (Segurança e Perfis)
+    Tarefa 3.1 e 3.2: Tabela de Usuários, Autenticação e Proteção de Rotas.
+        Localização:
+            Backend: backend/app.py (Tabela Usuario, rotas /login e /usuarios). Uso de Werkzeug para criptografia de senhas.
+            Frontend: frontend/src/context/AuthContext.jsx (Gerenciamento de sessão) e frontend/src/App.jsx (Proteção de rotas privadas).
+    Status: Concluída. O sistema exige login e diferencia usuários.
+
+    Tarefa 3.3 e 3.4: Gestão de Perfis e Diferenciação de Telas.
+        Localização:
+        Backend: Coluna perfil na tabela Usuario.
+        Frontend: Navbar.jsx e HomeView.jsx (Renderização condicional de botões). A lógica de "Instância da Pergunta" no formulário filtra quem pode ver o quê.
+    Status: Concluída. Coordenadores possuem acesso total; Professores apenas preenchem e visualizam.
+
+PBI-02: Visualização e Comparação (Inteligência e Dashboards)
+    Tarefa 3.5: Dashboard Visual (Gráficos Recharts).
+        Localização: frontend/src/views/Dashboard.jsx.
+        Detalhes: Implementação de gráficos de Pizza e Barras usando a biblioteca recharts.
+        Inovação: Filtro por "Instâncias de Pergunta", permitindo ver o ranking de alunos citados em questões específicas (ex: Destaques vs. Dificuldades).
+    Status: Concluída.
+
+PBI-06: Plataforma Web (Identidade Visual)
+    Tarefa 3.6: Identidade Visual Institucional.
+        Localização: frontend/src/index.css (Configuração do Tailwind) e componentes de layout.
+        Detalhes: Padronização das cores (Indigo/Blue para Coordenadoria, Emerald para Sucesso) e estilização de Cards e Modais para parecer um sistema oficial.
+    Status: Concluída.
+
+PBI-02: Visualização e Comparação (Relatórios)
+    Tarefa 3.7: Exportação de Ata/Relatório Final em PDF.
+        Localização: frontend/src/views/ComparacaoView.jsx.
+        Detalhes: Integração das bibliotecas html2canvas e jsPDF.
+        Funcionalidade: Botão que captura a "Grade de Confronto" (todas as respostas dos docentes) e gera um arquivo PDF formatado para impressão.
+    Status: Concluída.
+
+    Identificação de Respondentes e Respostas Individuais.
+        Localização: backend/app.py (Coluna usuario_nome em Resposta) e ComparacaoView.jsx.
+        Detalhes: O sistema agora registra o nome do professor que enviou a resposta e permite clicar no nome para abrir um modal com o relatório individual.
+    Status: Concluída.
+
+PBI-01: Gestão de Formulários (Modelo Oficial)
+    Tarefa 1.5 (Atualizada): Modelo Oficial Completo (Docente/NAE/NAPNE/NEABI/NEPGES).  
+        Localização: frontend/src/views/FormBuilderView.jsx.
+        Detalhes: Botão "Carregar Modelo Oficial" que injeta todas as seções institucionais com a lógica de visibilidade por cargo já pré-configurada.
+    Status: Concluída.
+
+Nota sobre Q.A. (Quality Assurance): Conforme solicitado, as tarefas de teste e validação de bugs não foram incluídas nesta documentação de localização de código, embora as funcionalidades tenham sido validadas manualmente durante o desenvolvimento.
