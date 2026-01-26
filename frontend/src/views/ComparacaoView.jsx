@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTurmas } from "../hooks/useTurmas";
 import { useAlunos } from "../hooks/useAlunos";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { useRef } from "react";
+
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function ComparacaoView() {
@@ -15,6 +19,9 @@ export default function ComparacaoView() {
   const [filtroTurma, setFiltroTurma] = useState("");
   const [filtroForm, setFiltroForm] = useState("");
 
+  //pdf
+  const relatorioRef = useRef(null);
+
   // --- 1. CARREGAR DADOS DO BACKEND ---
   useEffect(() => {
     // Busca Modelos de Formulário (para saber os enunciados)
@@ -27,6 +34,45 @@ export default function ComparacaoView() {
         .then(res => res.json())
         .then(data => setTodasRespostas(data));
   }, []);
+
+    //funçao para gerar os pdfs
+        const gerarPDF = async () => {
+        if (!relatorioRef.current) return;
+
+        const canvas = await html2canvas(relatorioRef.current, {
+            scale: 2,
+            useCORS: true,
+            ignoreElements: (element) =>
+            element.classList?.contains("no-print"),
+        });
+
+        const imgData = canvas.toDataURL("image/png");
+
+        const pdf = new jsPDF("p", "mm", "a4");
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        const imgWidth = pageWidth;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 0) {
+            position -= pageHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+        }
+
+        pdf.save(`relatorio-turma-${filtroTurma}.pdf`);
+        };
+
+
 
   // --- 2. PROCESSAMENTO DOS DADOS ---
   
@@ -120,8 +166,7 @@ export default function ComparacaoView() {
 
       {/* --- CONTEÚDO DO RELATÓRIO --- */}
       {filtroTurma && filtroForm && relatorioQualitativo ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
+            <div ref={relatorioRef} className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-white p-4"> 
               {/* COLUNA ESQUERDA: DADOS DA TURMA (Instâncias) */}
               <div className="space-y-6">
                   <div className="bg-white p-5 rounded-lg shadow border-l-4 border-blue-900">
@@ -198,9 +243,18 @@ export default function ComparacaoView() {
                                   )}
                               </div>
                           )}
-                      </div>
+                          
+                      </div>   
                   ))}
+                    <button
+                    onClick={gerarPDF}
+                    disabled={!filtroTurma || !filtroForm}
+                    className="bg-green-900 text-white px-4 py-2 rounded hover:bg-red-800 transition disabled:opacity-50 no-print"
+                    >
+                    📄 Gerar PDF
+                    </button>
               </div>
+         
           </div>
       ) : (
           <div className="text-center py-20 bg-gray-50 border-2 border-dashed rounded-xl">
