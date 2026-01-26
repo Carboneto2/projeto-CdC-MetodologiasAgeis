@@ -49,61 +49,120 @@ export default function GestaoUsuariosView() {
         carregarUsuarios();
     };
 
-    return (
-        <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800">Gestão de Acessos</h2>
+return (
+  <div className="bg-gray-100 min-h-[calc(100vh-64px)]">
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
 
-            {/* CARD DE CADASTRO */}
-            <div className="bg-white p-6 rounded-lg shadow-md border">
-                <h3 className="font-bold mb-4">Novo Usuário</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input className="border p-2 rounded" placeholder="Nome Completo" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} />
-                    <input className="border p-2 rounded" placeholder="Login de Acesso" value={form.login} onChange={e => setForm({...form, login: e.target.value})} />
-                    <input className="border p-2 rounded" type="password" placeholder="Senha" value={form.senha} onChange={e => setForm({...form, senha: e.target.value})} />
-                    
-                    <select className="border p-2 rounded bg-white" value={form.perfil} onChange={e => setForm({...form, perfil: e.target.value})}>
-                        <option value="">Selecione o Cargo...</option>
-                        {perfis.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
+      {/* CABEÇALHO */}
+      <header className="bg-white rounded-xl shadow-md border p-6 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-2 bg-red-700"></div>
+        <h1 className="text-2xl font-bold text-green-800">
+          Gestão de Usuários
+        </h1>
+        <p className="text-sm text-gray-600 mt-1">
+          Controle de acessos ao sistema
+        </p>
+      </header>
 
-                    <button onClick={salvarUsuario} className="col-span-full bg-blue-900 text-white p-2 rounded font-bold hover:bg-blue-800">
-                        + Cadastrar Usuário
-                    </button>
-                </div>
-            </div>
+      {/* CADASTRO */}
+      <section className="bg-white p-6 rounded-xl shadow-md border space-y-4">
+        <h2 className="font-bold text-green-800">
+          Novo usuário
+        </h2>
 
-            {/* LISTA DE USUÁRIOS */}
-            <div className="bg-white p-6 rounded-lg shadow-md border">
-                <h3 className="font-bold mb-4">Usuários Ativos ({usuarios.length})</h3>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-gray-500">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                            <tr>
-                                <th className="px-4 py-3">Nome</th>
-                                <th className="px-4 py-3">Login</th>
-                                <th className="px-4 py-3">Perfil</th>
-                                <th className="px-4 py-3 text-right">Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {usuarios.map(u => (
-                                <tr key={u.idusuario} className="border-b hover:bg-gray-50">
-                                    <td className="px-4 py-3 font-medium text-gray-900">{u.nome}</td>
-                                    <td className="px-4 py-3">{u.login}</td>
-                                    <td className="px-4 py-3">
-                                        <span className={`px-2 py-1 rounded text-xs text-white ${u.perfil === 'Coordenador' ? 'bg-purple-600' : 'bg-gray-500'}`}>
-                                            {u.perfil}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <button onClick={() => excluirUsuario(u.idusuario)} className="text-red-600 hover:text-red-900 font-bold">Excluir</button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input
+            className="border border-gray-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-700"
+            placeholder="Nome completo"
+            value={form.nome}
+            onChange={e => setForm({ ...form, nome: e.target.value })}
+          />
+
+          <input
+            className="border border-gray-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-700"
+            placeholder="Login de acesso"
+            value={form.login}
+            onChange={e => setForm({ ...form, login: e.target.value })}
+          />
+
+          <input
+            type="password"
+            className="border border-gray-300 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-700"
+            placeholder="Senha inicial"
+            value={form.senha}
+            onChange={e => setForm({ ...form, senha: e.target.value })}
+          />
+
+          <select
+            className="border border-gray-300 p-2 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-700"
+            value={form.perfil}
+            onChange={e => setForm({ ...form, perfil: e.target.value })}
+          >
+            <option value="">Selecione o perfil</option>
+            {perfis.map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+
+          <button
+            onClick={salvarUsuario}
+            className="md:col-span-2 bg-green-700 text-white p-3 rounded-xl font-bold hover:bg-green-800 transition-all"
+          >
+            Cadastrar usuário
+          </button>
         </div>
-    );
+      </section>
+
+      {/* LISTAGEM */}
+      <section className="bg-white p-6 rounded-xl shadow-md border">
+        <h2 className="font-bold mb-4 text-green-800">
+          Usuários ativos ({usuarios.length})
+        </h2>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs uppercase bg-gray-50">
+              <tr>
+                <th className="px-4 py-3">Nome</th>
+                <th className="px-4 py-3">Login</th>
+                <th className="px-4 py-3">Perfil</th>
+                <th className="px-4 py-3 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {usuarios.map(u => (
+                <tr
+                  key={u.idusuario}
+                  className="border-b hover:bg-gray-50"
+                >
+                  <td className="px-4 py-3 font-medium text-gray-800">
+                    {u.nome}
+                  </td>
+                  <td className="px-4 py-3">
+                    {u.login}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700">
+                      {u.perfil}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => excluirUsuario(u.idusuario)}
+                      className="text-red-600 hover:text-red-800 font-bold"
+                    >
+                      Excluir
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </div>
+);
+
 }
