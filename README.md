@@ -1,97 +1,103 @@
-# Projeto Conselho de Classe (CdC)
 
-Este é um projeto de aplicação web full-stack desenvolvido para digitalizar e otimizar o processo de Conselho de Classe em escolas. Ele permite o cadastro de turmas, alunos e a criação e preenchimento de formulários de avaliação personalizados.
+### 📝 Conteúdo do `README.md`
 
-O projeto é dividido em uma API de backend (Flask/Python) e uma interface de frontend (React/Vite).
+```markdown
+# 🏫 Sistema de Conselho de Classe Digital (CdC)
 
----
-
-## 🚀 Tecnologias Utilizadas
-
-* **Backend:**
-    * **Python 3**
-    * **Flask** (Como servidor de API)
-    * **Flask-CORS** (Necessário para o modo de desenvolvimento)
-    * **SQLite** (Banco de dados)
-* **Frontend:**
-    * **React 19**
-    * **Vite** (Ambiente de desenvolvimento)
-    * **Tailwind CSS** (Para estilização)
+O **CdC** é uma solução Full-Stack desenvolvida para modernizar e digitalizar o processo de Conselho de Classe. Ele permite que coordenadores e professores gerenciem turmas, alunos e avaliações de forma centralizada, transformando dados qualitativos em inteligência pedagógica através de dashboards e relatórios automáticos.
 
 ---
 
-## 🏁 Como Rodar o Projeto
+## 📂 Estrutura do Projeto
 
-Para rodar este projeto, você precisará ter **Python** e **Node.js** (com `npm`) instalados na sua máquina.
+O repositório está organizado em uma arquitetura modular para facilitar a manutenção e o deploy:
 
-### Passo 1: Configuração Inicial (Feito apenas uma vez)
+```text
+/projeto-cdc
+├── /backend            # API Flask (Python) e Banco de Dados SQLite
+│   ├── /uploads        # Armazenamento local de fotos dos alunos (ignorado pelo Git)
+│   ├── app.py          # Servidor principal e rotas da API
+│   └── requirements.txt # Dependências Python otimizadas
+├── /frontend           # Interface SPA (React + Vite)
+│   ├── /src            # Componentes, Hooks, Contexts e Views
+│   ├── package.json    # Dependências JavaScript (Recharts, jsPDF, etc.)
+│   └── tailwind.config.js
+├── .gitignore          # Configuração de exclusão para Git (Raiz)
+└── README.md           # Documentação principal
 
-Antes de rodar o projeto, você precisa preparar o backend e o frontend.
-
-**1. Configurar o Backend (Banco de Dados):**
-```bash
-# 1. Navegue até a pasta do backend
-cd backend
-
-# 2. (Recomendado) Crie e ative um ambiente virtual
-python -m venv venv
-source venv/bin/activate  # (No Windows: .\venv\Scripts\activate)
-
-# 3. Instale as dependências do Python
-pip install Flask flask-cors
-
-# 4. CRIE E POPULE O BANCO DE DADOS (Passo Essencial!)
-# Este comando executa o script init_db.py
-python init_db.py
-```
-*(Este último passo criará o arquivo `banco.db` e o populará com os dados de exemplo das pastas `dados/`).*
-
-**2. Configurar o Frontend:**
-```bash
-# 1. Em um NOVO terminal, navegue até a pasta do frontend
-cd frontend
-
-# 2. Instale as dependências do Node.js
-npm install
 ```
 
 ---
 
-### Passo 2: Executando em Modo de Desenvolvimento (Recomendado)
+## ✨ Funcionalidades Principais
 
-Este modo permite que você veja as alterações no código em tempo real (hot-reload). Você precisará de **dois terminais** abertos.
+### 🔒 Segurança e Perfis
 
-**Terminal 1 (Rodando o Backend API):**
+* **Autenticação:** Sistema de login com hash de senha seguro via `Werkzeug`.
+* **Níveis de Acesso:** Diferenciação entre perfis de **Coordenador** (acesso total) e **Docente** (preenchimento e visualização).
+
+### 📋 Gestão Pedagógica
+
+* **Formulários Inteligentes:** Criação de questionários dinâmicos com suporte a múltiplas instâncias (Docentes, NAE, NAPNE, NEABI e NEPGES).
+* **Modelo Oficial:** Botão de injeção automática do modelo padrão institucional.
+* **Registro de Alunos:** Cadastro completo com suporte a upload de fotos para identificação visual rápida.
+
+### 📊 Inteligência de Dados
+
+* **Dashboard de Monitoramento:** Gráficos interativos (Pizza e Barras) via `Recharts` para identificar alunos em destaque ou risco.
+* **Grade de Confronto:** Visualização consolidada de todas as respostas dos professores por pergunta.
+* **Exportação PDF:** Geração automática de relatórios oficiais para impressão através de `jsPDF` e `html2canvas`.
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+
+* **Frontend:** React 19, Vite, Tailwind CSS, Recharts, Lucide React.
+* **Backend:** Python 3, Flask, Flask-CORS, SQLAlchemy, SQLite.
+
+---
+
+## 🚀 Como Executar o Projeto
+
+### 1. Pré-requisitos
+
+* Python 3.10 ou superior
+* Node.js 18 ou superior
+
+### 2. Configuração do Backend
+
+Entre na pasta do servidor e configure o ambiente virtual:
+
 ```bash
-# 1. Navegue até a pasta do backend
 cd backend
-
-# 2. Ative o ambiente virtual
-source venv/bin/activate
-
-# 3. Inicie o servidor da API Flask
+python3 -m venv venv
+source venv/bin/activate  # No Windows use: venv\Scripts\activate
+pip install -r requirements.txt
 python app.py
-```
-*O backend estará rodando em `http://127.0.0.1:5000`*
 
-**Terminal 2 (Rodando o Frontend React):**
+```
+
+### 3. Configuração do Frontend
+
+Em um novo terminal, instale as dependências e inicie o servidor de desenvolvimento:
+
 ```bash
-# 1. Navegue até a pasta do frontend
 cd frontend
-
-# 2. Inicie o servidor de desenvolvimento do Vite
+npm install
 npm run dev
-```
-*O frontend estará rodando em `http://localhost:5173`*
 
-**Acesso:**
-Após iniciar os dois servidores, abra seu navegador e acesse:
-**➡️ `http://localhost:5173`**
+```
 
 ---
 
-### Passo 3: Executando em Modo de Produção (Para Apresentação)
+## 👥 Equipe e Papéis
 
-Este modo simula como o projeto seria entregue. Ele "compila" o frontend e usa o Flask para servir todos os arquivos.
+* **Product Owner:** Gustavo
+* **Scrum Master:** Ana Clara
+* **Desenvolvimento:** Lara, Pedro, Alex, Emanuel
 
-1.
+---
+
+## 📄 Licença
+
+Este projeto foi desenvolvido para fins acadêmicos e institucionais. Consulte a coordenação para detalhes sobre permissões de uso.
