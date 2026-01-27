@@ -4,7 +4,9 @@
 ```markdown
 # 🏫 Sistema de Conselho de Classe Digital (CdC)
 
-O **CdC** é uma solução Full-Stack desenvolvida para modernizar e digitalizar o processo de Conselho de Classe. Ele permite que coordenadores e professores gerenciem turmas, alunos e avaliações de forma centralizada, transformando dados qualitativos em inteligência pedagógica através de dashboards e relatórios automáticos.
+O **CdC** é uma solução Full-Stack desenvolvida para modernizar e digitalizar o processo de Conselho de Classe. 
+Ele permite que coordenadores e professores gerenciem turmas, alunos e avaliações de forma centralizada, 
+transformando dados qualitativos em inteligência pedagógica através de dashboards e relatórios automáticos.
 
 ---
 
