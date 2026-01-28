@@ -142,207 +142,317 @@ export default function ComparacaoView() {
     return `Usuário ${idString}`;
   };
 
-  // --- FUNÇÃO PARA GERAR PDF PROFISSIONAL ---
+  // --- FUNÇÃO AUXILIAR PARA FORMATAR TEXTO PARA PDF COM QUEBRA DE LINHA ---
+  const formatarTextoPDF = (texto) => {
+    if (texto === null || texto === undefined) return "";
+    
+    // Se for array, converter para string formatada
+    if (Array.isArray(texto)) {
+      return texto
+        .map(item => String(item).trim())
+        .filter(item => item)
+        .join(", ");
+    }
+    
+    return String(texto).trim();
+  };
+
+  // --- FUNÇÃO PARA GERAR PDF PROFISSIONAL COM QUEBRA DE LINHA ---
   const gerarPDFProfissional = async () => {
-    if (!relatorioQualitativo) return;
+  if (!relatorioQualitativo) return;
 
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const margin = 20;
-    let yPosition = margin;
+  const pdf = new jsPDF("p", "mm", "a4");
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const margin = 20;
+  let yPosition = margin;
 
-    // --- CABEÇALHO DO PDF ---
-    pdf.setFontSize(20);
+  // --- CABEÇALHO DO PDF ---
+  pdf.setFontSize(20);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(46, 125, 50);
+  
+  // Usar text diretamente para cabeçalho
+  const cabecalho = "Relatório de Conselho de Classe";
+  const cabecalhoWidth = pdf.getStringUnitWidth(cabecalho) * 20 / pdf.internal.scaleFactor;
+  pdf.text(cabecalho, (pageWidth - cabecalhoWidth) / 2, yPosition);
+  
+  yPosition += 10;
+  
+  pdf.setFontSize(12);
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(0, 0, 0);
+  
+  const turmaSelecionada = turmas.find(t => String(t.id) === String(filtroTurma));
+  const formularioSelecionado = formularios.find(f => String(f.id) === String(filtroForm));
+  const usuarioSelecionado = filtroUsuario ? 
+    relatorioQualitativo.participantes.find(p => String(p.id) === String(filtroUsuario)) : 
+    null;
+  
+  // Informações do relatório
+  const dataAtual = new Date().toLocaleDateString('pt-BR');
+  
+  // Usar text diretamente para informações
+  pdf.text(`Turma: ${turmaSelecionada ? `${turmaSelecionada.nome} - ${turmaSelecionada.ano}` : 'Não informada'}`, margin, yPosition);
+  yPosition += 7;
+  
+  pdf.text(`Formulário: ${formularioSelecionado?.titulo || 'Não informado'}`, margin, yPosition);
+  yPosition += 7;
+  
+  if (usuarioSelecionado) {
+    pdf.text(`Respondente: ${usuarioSelecionado.nome} (${usuarioSelecionado.perfil})`, margin, yPosition);
+    yPosition += 7;
+  } else {
+    pdf.text(`Total de respondentes: ${relatorioQualitativo.participantes.length}`, margin, yPosition);
+    yPosition += 7;
+  }
+  
+  pdf.text(`Data do relatório: ${dataAtual}`, margin, yPosition);
+  yPosition += 15;
+  
+  // Linha divisória
+  pdf.setDrawColor(46, 125, 50);
+  pdf.setLineWidth(0.5);
+  pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 10;
+
+  // --- CONTEÚDO DO RELATÓRIO ---
+  const questoesParaPDF = filtroUsuario 
+    ? relatorioQualitativo.questoes.filter(q => q.totalRespostas > 0)
+    : relatorioQualitativo.questoes;
+
+  // Função auxiliar para verificar nova página
+  const checkNewPage = (spaceNeeded) => {
+    if (yPosition + spaceNeeded > pdf.internal.pageSize.getHeight() - margin) {
+      pdf.addPage();
+      yPosition = margin;
+      return true;
+    }
+    return false;
+  };
+
+  // Função para adicionar texto com quebra de linha personalizada
+  const addTextWithLineBreaks = (text, x, y, maxWidth) => {
+    if (!text) return y;
+    
+    const lines = [];
+    let currentLine = '';
+    const words = text.split(' ');
+    
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testWidth = pdf.getStringUnitWidth(testLine) * pdf.internal.getFontSize() / pdf.internal.scaleFactor;
+      
+      if (testWidth > maxWidth && currentLine !== '') {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    // Escrever cada linha
+    lines.forEach(line => {
+      if (checkNewPage(7)) {
+        x = margin;
+      }
+      pdf.text(line, x, y);
+      y += 7;
+    });
+    
+    return y;
+  };
+
+  // Função para limpar texto de caracteres especiais
+  const cleanTextForPDF = (text) => {
+    if (!text) return "";
+    
+    // Converter para string
+    let cleanText = String(text);
+    
+    // Substituir caracteres problemáticos
+    const replacements = {
+      '—': '-',
+      '–': '-',
+      '…': '...',
+      '“': '"',
+      '”': '"',
+      '‘': "'",
+      '’': "'",
+      '«': '"',
+      '»': '"',
+      '•': '-',
+      '→': '->',
+      '←': '<-',
+      '↑': '^',
+      '↓': 'v',
+      '€': 'EUR',
+      '£': 'GBP',
+      '¥': 'JPY',
+      '©': '(c)',
+      '®': '(R)',
+      '™': '(TM)'
+    };
+    
+    // Aplicar substituições
+    Object.keys(replacements).forEach(char => {
+      cleanText = cleanText.replace(new RegExp(char, 'g'), replacements[char]);
+    });
+    
+    // Remover caracteres não imprimíveis
+    cleanText = cleanText.replace(/[^\x20-\x7E\u00C0-\u00FF\n\r]/g, '');
+    
+    return cleanText;
+  };
+
+  for (let idx = 0; idx < questoesParaPDF.length; idx++) {
+    const q = questoesParaPDF[idx];
+    
+    checkNewPage(25);
+    
+    // ENUNCIADO DA QUESTÃO
+    pdf.setFontSize(14);
     pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(46, 125, 50); // Verde IF
-    pdf.text("Relatório de Conselho de Classe", pageWidth / 2, yPosition, { align: "center" });
-    
-    yPosition += 10;
-    
-    pdf.setFontSize(12);
-    pdf.setFont("helvetica", "normal");
     pdf.setTextColor(0, 0, 0);
     
-    const turmaSelecionada = turmas.find(t => String(t.id) === String(filtroTurma));
-    const formularioSelecionado = formularios.find(f => String(f.id) === String(filtroForm));
-    const usuarioSelecionado = filtroUsuario ? 
-      relatorioQualitativo.participantes.find(p => String(p.id) === String(filtroUsuario)) : 
-      null;
+    const enunciadoClean = cleanTextForPDF(q.enunciado);
+    const numeroQuestao = `${idx + 1}. `;
+    const textoCompleto = numeroQuestao + enunciadoClean;
     
-    // Informações do relatório
-    const dataAtual = new Date().toLocaleDateString('pt-BR');
+    yPosition = addTextWithLineBreaks(textoCompleto, margin, yPosition, pageWidth - 2 * margin);
+    yPosition += 5;
     
-    pdf.text(`Turma: ${turmaSelecionada ? `${turmaSelecionada.nome} - ${turmaSelecionada.ano}` : 'Não informada'}`, margin, yPosition);
-    yPosition += 7;
+    // TIPO DA QUESTÃO
+    pdf.setFontSize(10);
+    pdf.setFont("helvetica", "italic");
+    pdf.setTextColor(100, 100, 100);
     
-    pdf.text(`Formulário: ${formularioSelecionado?.titulo || 'Não informado'}`, margin, yPosition);
-    yPosition += 7;
+    const tipoFormatado = q.tipo === "multipla" ? "Múltipla Escolha" : 
+                         q.tipo === "lista_alunos" ? "Lista de Alunos" : 
+                         q.tipo === "texto" ? "Texto Curto" : "Texto Longo";
     
-    if (usuarioSelecionado) {
-      pdf.text(`Respondente: ${usuarioSelecionado.nome} (${usuarioSelecionado.perfil})`, margin, yPosition);
-      yPosition += 7;
-    } else {
-      pdf.text(`Total de respondentes: ${relatorioQualitativo.participantes.length}`, margin, yPosition);
-      yPosition += 7;
-    }
+    pdf.text(`Tipo: ${tipoFormatado}`, margin, yPosition);
+    yPosition += 6;
     
-    pdf.text(`Data do relatório: ${dataAtual}`, margin, yPosition);
-    yPosition += 15;
-    
-    // Linha divisória
-    pdf.setDrawColor(46, 125, 50);
-    pdf.setLineWidth(0.5);
-    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
-    yPosition += 10;
-
-    // --- CONTEÚDO DO RELATÓRIO ---
-    const questoesParaPDF = filtroUsuario 
-      ? relatorioQualitativo.questoes.filter(q => q.totalRespostas > 0)
-      : relatorioQualitativo.questoes;
-
-    const checkNewPage = (spaceNeeded) => {
-      if (yPosition + spaceNeeded > pdf.internal.pageSize.getHeight() - margin) {
-        pdf.addPage();
-        yPosition = margin;
-        return true;
-      }
-      return false;
-    };
-
-    for (let idx = 0; idx < questoesParaPDF.length; idx++) {
-      const q = questoesParaPDF[idx];
-      
-      checkNewPage(20);
-      
-      pdf.setFontSize(14);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(0, 0, 0);
-      
-      const enunciadoLines = pdf.splitTextToSize(`${idx + 1}. ${q.enunciado}`, pageWidth - 2 * margin);
-      pdf.text(enunciadoLines, margin, yPosition);
-      yPosition += (enunciadoLines.length * 7) + 5;
-      
-      pdf.setFontSize(10);
-      pdf.setFont("helvetica", "italic");
-      pdf.setTextColor(100, 100, 100);
-      pdf.text(`Tipo: ${q.tipo === "multipla" ? "Múltipla Escolha" : 
-               q.tipo === "lista_alunos" ? "Lista de Alunos" : 
-               q.tipo === "texto" ? "Texto Curto" : "Texto Longo"}`, margin, yPosition);
-      yPosition += 7;
-      
-      if (q.respostas.length === 0) {
-        pdf.setFontSize(11);
-        pdf.setFont("helvetica", "normal");
-        pdf.setTextColor(150, 150, 150);
-        pdf.text("Nenhuma resposta registrada.", margin, yPosition);
-        yPosition += 10;
-      } else {
-        if (q.tipo === "multipla") {
-          checkNewPage(30);
-          
-          pdf.setFontSize(11);
-          pdf.setFont("helvetica", "bold");
-          pdf.setTextColor(0, 0, 0);
-          
-          pdf.text("Opção", margin, yPosition);
-          pdf.text("Votos", pageWidth - margin - 20, yPosition, { align: "right" });
-          yPosition += 7;
-          
-          pdf.setDrawColor(200, 200, 200);
-          pdf.setLineWidth(0.2);
-          pdf.line(margin, yPosition - 3, pageWidth - margin, yPosition - 3);
-          yPosition += 5;
-          
-          pdf.setFont("helvetica", "normal");
-          q.respostas.forEach((resp) => {
-            checkNewPage(10);
-            
-            pdf.text(resp.texto, margin, yPosition);
-            pdf.text(`${resp.contagem}`, pageWidth - margin - 20, yPosition, { align: "right" });
-            
-            if (filtroUsuario) {
-              const usuarioEscolheu = resp.usuariosIds.some(id => String(id) === String(filtroUsuario));
-              if (usuarioEscolheu) {
-                pdf.setTextColor(46, 125, 50);
-                pdf.text("✓", pageWidth - margin - 30, yPosition);
-                pdf.setTextColor(0, 0, 0);
-              }
-            }
-            
-            yPosition += 7;
-          });
-          yPosition += 10;
-          
-        } else if (q.tipo === "lista_alunos") {
-          checkNewPage(30);
-          pdf.setFontSize(11);
-          pdf.setFont("helvetica", "bold");
-          pdf.text("Alunos citados:", margin, yPosition);
-          yPosition += 7;
-          pdf.setFont("helvetica", "normal");
-          
-          const alunosPorLinha = 3;
-          let alunosNaLinha = 0;
-          let linhaAtualY = yPosition;
-          
-          q.respostas.forEach((resp) => {
-            if (alunosNaLinha === alunosPorLinha) {
-              alunosNaLinha = 0;
-              linhaAtualY += 7;
-              checkNewPage(10);
-            }
-            const alunoText = `${resp.nome || resp.texto} (${resp.usuariosNomes.length})`;
-            const coluna = margin + (alunosNaLinha * 60);
-            pdf.text(alunoText, coluna, linhaAtualY);
-            alunosNaLinha++;
-          });
-          yPosition = linhaAtualY + 15;
-          
-        } else {
-          q.respostas.forEach((resp) => {
-            checkNewPage(30);
-            pdf.setFontSize(11);
-            pdf.setFont("helvetica", "normal");
-            pdf.setTextColor(0, 0, 0);
-            
-            const respostaLines = pdf.splitTextToSize(`"${resp.texto}"`, pageWidth - 2 * margin - 10);
-            pdf.text(respostaLines, margin + 5, yPosition);
-            yPosition += (respostaLines.length * 6) + 5;
-            
-            if (!filtroUsuario && resp.usuariosNomes.length > 0) {
-              pdf.setFontSize(9);
-              pdf.setFont("helvetica", "italic");
-              pdf.setTextColor(100, 100, 100);
-              
-              const respondentesText = `Respondido por: ${resp.usuariosNomes.slice(0, 3).join(', ')}`;
-              const respondentesLines = pdf.splitTextToSize(respondentesText, pageWidth - 2 * margin - 10);
-              pdf.text(respondentesLines, margin + 10, yPosition);
-              yPosition += (respondentesLines.length * 5) + 5;
-            }
-            yPosition += 5;
-          });
-        }
-      }
-      yPosition += 10;
-      if (yPosition > pdf.internal.pageSize.getHeight() - 30) {
-        pdf.addPage();
-        yPosition = margin;
-      }
-    }
-    
-    const pageCount = pdf.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      pdf.setPage(i);
-      pdf.setFontSize(8);
+    if (q.respostas.length === 0) {
+      pdf.setFontSize(11);
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(150, 150, 150);
-      pdf.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pdf.internal.pageSize.getHeight() - 10, { align: "center" });
-      pdf.text("Instituto Federal - Sistema de Conselho de Classe", margin, pdf.internal.pageSize.getHeight() - 10);
+      pdf.text("Nenhuma resposta registrada.", margin, yPosition);
+      yPosition += 10;
+    } else {
+      if (q.tipo === "multipla") {
+        checkNewPage(25);
+        
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(0, 0, 0);
+        
+        pdf.text("Opção", margin, yPosition);
+        pdf.text("Votos", pageWidth - margin - 20, yPosition, { align: "right" });
+        yPosition += 6;
+        
+        pdf.setDrawColor(200, 200, 200);
+        pdf.setLineWidth(0.2);
+        pdf.line(margin, yPosition - 3, pageWidth - margin, yPosition - 3);
+        yPosition += 5;
+        
+        pdf.setFont("helvetica", "normal");
+        q.respostas.forEach((resp) => {
+          checkNewPage(10);
+          
+          const textoOpcao = cleanTextForPDF(resp.texto);
+          yPosition = addTextWithLineBreaks(textoOpcao, margin, yPosition, pageWidth - 2 * margin - 50);
+          
+          // Posicionar contagem de votos
+          const lineHeight = 7;
+          const textY = yPosition - lineHeight;
+          pdf.text(`${resp.contagem}`, pageWidth - margin - 20, textY, { align: "right" });
+          
+          if (filtroUsuario) {
+            const usuarioEscolheu = resp.usuariosIds.some(id => String(id) === String(filtroUsuario));
+            if (usuarioEscolheu) {
+              pdf.setTextColor(46, 125, 50);
+              pdf.text("✓", pageWidth - margin - 30, textY);
+              pdf.setTextColor(0, 0, 0);
+            }
+          }
+          
+          yPosition += 3; // Espaço entre opções
+        });
+        yPosition += 10;
+        
+      } else if (q.tipo === "lista_alunos") {
+        checkNewPage(25);
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Alunos citados:", margin, yPosition);
+        yPosition += 6;
+        pdf.setFont("helvetica", "normal");
+        
+        // Criar lista de alunos
+        const listaAlunos = q.respostas.map(resp => {
+          const nomeAluno = cleanTextForPDF(resp.nome || resp.texto);
+          return `${nomeAluno} (${resp.usuariosNomes.length})`;
+        }).join(', ');
+        
+        yPosition = addTextWithLineBreaks(listaAlunos, margin, yPosition, pageWidth - 2 * margin);
+        yPosition += 8;
+        
+      } else {
+        // RESPOSTAS TEXTUAIS
+        for (const resp of q.respostas) {
+          checkNewPage(25);
+          pdf.setFontSize(11);
+          pdf.setFont("helvetica", "normal");
+          pdf.setTextColor(0, 0, 0);
+          
+          const respostaText = cleanTextForPDF(resp.texto);
+          yPosition = addTextWithLineBreaks(`"${respostaText}"`, margin + 5, yPosition, pageWidth - 2 * margin - 10);
+          
+          if (!filtroUsuario && resp.usuariosNomes.length > 0) {
+            pdf.setFontSize(9);
+            pdf.setFont("helvetica", "italic");
+            pdf.setTextColor(100, 100, 100);
+            
+            const nomesFormatados = resp.usuariosNomes
+              .slice(0, 3)
+              .map(nome => cleanTextForPDF(nome))
+              .join(', ');
+            
+            const respondentesText = `Respondido por: ${nomesFormatados}${resp.usuariosNomes.length > 3 ? '...' : ''}`;
+            yPosition = addTextWithLineBreaks(respondentesText, margin + 10, yPosition, pageWidth - 2 * margin - 20);
+          }
+          yPosition += 8;
+        }
+      }
     }
     
-    const nomeArquivo = `Relatorio_Conselho_${turmaSelecionada?.nome || 'Turma'}_${dataAtual.replace(/\//g, '-')}.pdf`;
-    pdf.save(nomeArquivo);
-  };
+    yPosition += 10;
+    if (yPosition > pdf.internal.pageSize.getHeight() - 30) {
+      pdf.addPage();
+      yPosition = margin;
+    }
+  }
+  
+  // Adicionar numeração de páginas
+  const pageCount = pdf.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    pdf.setPage(i);
+    pdf.setFontSize(8);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(150, 150, 150);
+    pdf.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pdf.internal.pageSize.getHeight() - 10, { align: "center" });
+    pdf.text("Instituto Federal - Sistema de Conselho de Classe", margin, pdf.internal.pageSize.getHeight() - 10);
+  }
+  
+  const nomeArquivo = `Relatorio_Conselho_${turmaSelecionada?.nome || 'Turma'}_${dataAtual.replace(/\//g, '-')}.pdf`;
+  pdf.save(nomeArquivo);
+};
 
   // --- FUNÇÃO PARA AGRUPAR RESPOSTAS SIMILARES ---
   const agruparRespostasSimilares = (respostasComUsuarios) => {
@@ -619,328 +729,333 @@ export default function ComparacaoView() {
         </div>
 
         {/* CONTEÚDO DO CONSELHO */}
-        {filtroTurma && filtroForm && relatorioQualitativo ? (
-          <div
-            ref={relatorioRef}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-white p-4 rounded-xl shadow-sm border"
-          >
+{filtroTurma && filtroForm && relatorioQualitativo ? (
+  <div
+    ref={relatorioRef}
+    className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-white p-4 rounded-xl shadow-sm border"
+  >
 
-            {/* COLUNA ESQUERDA */}
-            <div className="space-y-6">
+    {/* COLUNA ESQUERDA */}
+    <div className="space-y-6">
 
-              <div className="bg-white p-5 rounded-lg shadow border-l-4 border-green-800">
-                <h3 className="font-bold text-lg mb-2 text-green-800">
-                  Visão da Turma
-                </h3>
+      <div className="bg-white p-5 rounded-lg shadow border-l-4 border-green-800">
+        <h3 className="font-bold text-lg mb-2 text-green-800">
+          Visão da Turma
+        </h3>
 
-                {statsTurma && (
-                  <div className="h-48">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          isAnimationActive={false}
-                          data={[
-                            { name: 'Em Risco', value: statsTurma.emRisco },
-                            { name: 'Regulares', value: statsTurma.bons },
-                            { name: 'Excelentes', value: statsTurma.excelentes },
-                          ]}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={70}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          <Cell fill="#c62828" />
-                          <Cell fill="#f9a825" />
-                          <Cell fill="#2e7d32" />
-                        </Pie>
-                        <Tooltip />
-                        <Legend verticalAlign="bottom" height={36} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </div>
-
-              {/* PARTICIPAÇÃO */}
-              <div className="bg-green-50 p-5 rounded-lg border border-green-200 shadow-sm">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-green-900">Participação</h3>
-
-                  {filtroUsuario && (
-                    <button
-                      onClick={() => setFiltroUsuario(null)}
-                      className="text-[10px] bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 font-bold transition no-print"
-                    >
-                      LIMPAR FILTRO
-                    </button>
-                  )}
-                </div>
-
-                <p className="text-3xl font-bold text-green-900">
-                  {relatorioQualitativo.totalFiltrado}
-                </p>
-
-                <p className="text-xs text-green-700 mb-4 italic">
-                  {filtroUsuario
-                    ? `Exibindo apenas respostas de: ${relatorioQualitativo.participantes.find(p => String(p.id) === String(filtroUsuario))?.nome || 'Usuário'}`
-                    : `Total de ${relatorioQualitativo.totalGeral} respostas enviadas`}
-                </p>
-
-                {filtroUsuario ? (
-                  <div className="border-t border-green-200 pt-3">
-                    <p className="text-[10px] font-bold text-green-800 uppercase mb-2">
-                      Filtrando por:
-                    </p>
-                  </div>
-                ) : (
-                  <div className="border-t border-green-200 pt-3">
-                    <p className="text-[10px] font-bold text-green-800 uppercase mb-2">
-                      Clique no nome para filtrar:
-                    </p>
-
-                    <ul className="text-sm text-green-900 space-y-1 max-h-64 overflow-y-auto pr-1">
-                      {relatorioQualitativo.participantes
-                        .sort((a, b) => a.nome.localeCompare(b.nome))
-                        .map((p) => (
-                          <li key={p.id}>
-                            <button
-                              onClick={() => setFiltroUsuario(p.id)}
-                              className={`flex flex-col items-start w-full text-left p-2 rounded-md transition-all ${
-                                String(filtroUsuario) === String(p.id)
-                                  ? 'bg-green-800 text-white shadow-md'
-                                  : 'hover:bg-green-200 bg-white/60'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 w-full">
-                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                  String(filtroUsuario) === String(p.id)
-                                    ? 'bg-white'
-                                    : 'bg-green-500'
-                                }`}></span>
-                                <span className="truncate text-xs font-medium text-left flex-1">
-                                  {p.nome || 'Usuário não identificado'}
-                                </span>
-                              </div>
-                            </button>
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* COLUNA DIREITA – QUESTÕES */}
-            <div className="lg:col-span-2 space-y-4">
-              {relatorioQualitativo.questoes.length === 0 ? (
-                <div className="text-center py-10">
-                  <p className="text-gray-500">
-                    {filtroUsuario 
-                      ? "Este usuário não respondeu nenhuma pergunta deste formulário."
-                      : "Nenhuma resposta encontrada para este formulário e turma."}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {relatorioQualitativo.questoes.map((q, idx) => (
-                    <div
-                      key={q.id}
-                      className="bg-white p-5 rounded-lg shadow-sm border border-gray-100"
-                    >
-                      <div className="flex justify-between items-start mb-3">
-                        <h4 className="font-bold text-gray-800 flex gap-2 items-start">
-                          <span className="bg-green-800 text-white px-2 py-0.5 rounded text-xs mt-1">
-                            {idx + 1}
-                          </span>
-                          <span className="flex-1">{q.enunciado}</span>
-                        </h4>
-                        <div className="flex gap-2">
-                          <span className="text-xs bg-gray-200 px-2 py-1 rounded">
-                            {q.tipo === "multipla" ? "Múltipla Escolha" : 
-                             q.tipo === "lista_alunos" ? "Lista de Alunos" : 
-                             q.tipo === "texto" ? "Texto Curto" : "Texto Longo"}
-                          </span>
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                            {q.totalRespostas} resposta(s)
-                          </span>
-                        </div>
-                      </div>
-
-                      {q.respostas.length === 0 ? (
-                        <p className="text-gray-400 italic text-sm">
-                          {filtroUsuario 
-                            ? "Este usuário não respondeu esta pergunta."
-                            : "Nenhuma resposta encontrada."}
-                        </p>
-                      ) : (
-                        <div className="space-y-3 pt-1">
-                          {q.tipo === "multipla" ? (
-                            <div className="space-y-4">
-                              {q.respostas.map((resp, i) => {
-                                const usuarioSelecionou = filtroUsuario 
-                                  ? resp.usuariosIds.some(id => String(id) === String(filtroUsuario))
-                                  : false;
-                                
-                                return (
-                                  <div key={i} className="relative group">
-                                    <div className={`flex items-center justify-between p-3 rounded-lg border-l-4 transition-all ${
-                                      usuarioSelecionou
-                                        ? 'bg-blue-100 border-blue-600'
-                                        : 'bg-blue-50 border-blue-400 hover:bg-blue-100'
-                                    }`}>
-                                      <span className="text-sm font-medium text-gray-800">
-                                        {resp.texto}
-                                        {usuarioSelecionou && (
-                                          <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-0.5 rounded">
-                                            Sua escolha
-                                          </span>
-                                        )}
-                                      </span>
-                                      <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                                        {resp.contagem} voto(s)
-                                      </span>
-                                    </div>
-                                    
-                                    {!filtroUsuario && (
-                                      <div className="absolute bottom-full left-4 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 min-w-[250px]">
-                                        <p className="font-bold text-blue-300 mb-2">
-                                          Quem escolheu esta opção:
-                                        </p>
-                                        {resp.usuariosNomes.length > 0 ? (
-                                          resp.usuariosNomes.map((nome, idx) => (
-                                            <div key={idx} className="flex items-center gap-2">
-                                              <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                                              <span>{nome}</span>
-                                            </div>
-                                          ))
-                                        ) : (
-                                          <p className="text-gray-400">Nenhum usuário identificado</p>
-                                        )}
-                                        <div className="absolute top-full left-8 transform -translate-x-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : q.tipo === "lista_alunos" ? (
-                            <div className="bg-gray-50 p-4 rounded-lg border">
-                              <p className="text-sm font-medium text-gray-700 mb-3">
-                                Alunos citados:
-                              </p>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                {q.respostas.map((resp, i) => {
-                                  const usuarioCitou = filtroUsuario 
-                                    ? resp.usuariosIds.some(id => String(id) === String(filtroUsuario))
-                                    : false;
-                                  
-                                  return (
-                                    <div key={i} className="relative group bg-white p-3 rounded border">
-                                      <div className="flex justify-between items-center">
-                                        <span className="font-medium">{resp.nome || resp.texto}</span>
-                                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                          {resp.usuariosNomes.length} citação(ões)
-                                        </span>
-                                      </div>
-                                      
-                                      {usuarioCitou && (
-                                        <div className="mt-1 text-xs text-blue-600 font-medium">
-                                          ✓ Você citou este aluno
-                                        </div>
-                                      )}
-                                      
-                                      {!filtroUsuario && (
-                                        <div className="absolute bottom-full left-4 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 min-w-[250px]">
-                                          <p className="font-bold text-green-300 mb-2">
-                                            Quem citou este aluno:
-                                          </p>
-                                          {resp.usuariosNomes.length > 0 ? (
-                                            resp.usuariosNomes.map((nome, idx) => (
-                                              <div key={idx} className="flex items-center gap-2">
-                                                <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                                                <span>{nome}</span>
-                                              </div>
-                                            ))
-                                          ) : (
-                                            <p className="text-gray-400">Nenhum usuário identificado</p>
-                                          )}
-                                          <div className="absolute top-full left-8 transform -translate-x-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {q.respostas.map((resp, i) => {
-                                const usuarioRespondeu = filtroUsuario 
-                                  ? resp.usuariosIds.some(id => String(id) === String(filtroUsuario))
-                                  : false;
-                                
-                                return (
-                                  <div key={i} className="relative group">
-                                    <div className={`text-sm text-gray-700 p-4 rounded-lg border-l-4 transition-all ${
-                                      usuarioRespondeu
-                                        ? 'bg-green-50 border-green-600'
-                                        : 'bg-gray-50 border-green-400 hover:bg-green-50'
-                                    }`}>
-                                      {resp.texto}
-                                      {usuarioRespondeu && (
-                                        <div className="mt-2 text-xs text-green-600 font-medium">
-                                          ✓ Sua resposta
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {!filtroUsuario && (
-                                      <div className="absolute bottom-full left-4 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 min-w-[250px]">
-                                        <p className="font-bold text-green-300 mb-2">
-                                          Quem respondeu:
-                                        </p>
-                                        {resp.usuariosNomes.length > 0 ? (
-                                          resp.usuariosNomes.map((nome, idx) => (
-                                            <div key={idx} className="flex items-center gap-2">
-                                              <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                                              <span>{nome}</span>
-                                            </div>
-                                          ))
-                                        ) : (
-                                          <p className="text-gray-400">Nenhum usuário identificado</p>
-                                        )}
-                                        <div className="absolute top-full left-8 transform -translate-x-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  
-                  <button
-                    onClick={gerarPDFProfissional}
-                    className="w-full bg-green-800 text-white px-6 py-4 rounded-xl hover:bg-green-900 transition-all font-bold shadow-lg no-print mt-6"
-                  >
-                    Gerar Relatório Profissional (PDF)
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-32 bg-white border-2 border-dashed border-gray-200 rounded-2xl">
-            <p className="text-xl text-gray-400 font-medium">
-              Selecione uma Turma e um Questionário para começar.
-            </p>
+        {statsTurma && (
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  isAnimationActive={false}
+                  data={[
+                    { name: 'Em Risco', value: statsTurma.emRisco },
+                    { name: 'Regulares', value: statsTurma.bons },
+                    { name: 'Excelentes', value: statsTurma.excelentes },
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={40}
+                  outerRadius={70}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  <Cell fill="#c62828" />
+                  <Cell fill="#f9a825" />
+                  <Cell fill="#2e7d32" />
+                </Pie>
+                <Tooltip />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         )}
+      </div>
+
+      {/* PARTICIPAÇÃO */}
+      <div className="bg-green-50 p-5 rounded-lg border border-green-200 shadow-sm">
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="font-bold text-green-900">Participação</h3>
+
+          {filtroUsuario && (
+            <button
+              onClick={() => setFiltroUsuario(null)}
+              className="text-[10px] bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 font-bold transition no-print"
+            >
+              LIMPAR FILTRO
+            </button>
+          )}
+        </div>
+
+        <p className="text-3xl font-bold text-green-900">
+          {relatorioQualitativo.totalFiltrado}
+        </p>
+
+        <p className="text-xs text-green-700 mb-4 italic">
+          {filtroUsuario
+            ? `Exibindo apenas respostas de: ${relatorioQualitativo.participantes.find(p => String(p.id) === String(filtroUsuario))?.nome || 'Usuário'}`
+            : `Total de ${relatorioQualitativo.totalGera} respostas enviadas`}
+        </p>
+
+        {filtroUsuario ? (
+          <div className="border-t border-green-200 pt-3">
+            <p className="text-[10px] font-bold text-green-800 uppercase mb-2">
+              Filtrando por:
+            </p>
+          </div>
+        ) : (
+          <div className="border-t border-green-200 pt-3">
+            <p className="text-[10px] font-bold text-green-800 uppercase mb-2">
+              Clique no nome para filtrar:
+            </p>
+
+            <ul className="text-sm text-green-900 space-y-1 max-h-64 overflow-y-auto pr-1">
+              {relatorioQualitativo.participantes
+                .sort((a, b) => a.nome.localeCompare(b.nome))
+                .map((p) => (
+                  <li key={p.id}>
+                    <button
+                      onClick={() => setFiltroUsuario(p.id)}
+                      className={`flex flex-col items-start w-full text-left p-2 rounded-md transition-all ${
+                        String(filtroUsuario) === String(p.id)
+                          ? 'bg-green-800 text-white shadow-md'
+                          : 'hover:bg-green-200 bg-white/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                          String(filtroUsuario) === String(p.id)
+                            ? 'bg-white'
+                            : 'bg-green-500'
+                        }`}></span>
+                        <span className="truncate text-xs font-medium text-left flex-1">
+                          {p.nome || 'Usuário não identificado'}
+                        </span>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* COLUNA DIREITA – QUESTÕES */}
+    <div className="lg:col-span-2 space-y-4">
+      {relatorioQualitativo.questoes.length === 0 ? (
+        <div className="text-center py-10">
+          <p className="text-gray-500">
+            {filtroUsuario 
+              ? "Este usuário não respondeu nenhuma pergunta deste formulário."
+              : "Nenhuma resposta encontrada para este formulário e turma."}
+          </p>
+        </div>
+      ) : (
+        <>
+          {relatorioQualitativo.questoes.map((q, idx) => (
+            <div
+              key={q.id}
+              className="bg-white p-5 rounded-lg shadow-sm border border-gray-100"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <h4 className="font-bold text-gray-800 flex gap-2 items-start">
+                  <span className="bg-green-800 text-white px-2 py-0.5 rounded text-xs mt-1">
+                    {idx + 1}
+                  </span>
+                  <span className="flex-1">{q.enunciado}</span>
+                </h4>
+                <div className="flex gap-2">
+                  <span className="text-xs bg-gray-200 px-2 py-1 rounded">
+                    {q.tipo === "multipla" ? "Múltipla Escolha" : 
+                     q.tipo === "lista_alunos" ? "Lista de Alunos" : 
+                     q.tipo === "texto" ? "Texto Curto" : "Texto Longo"}
+                  </span>
+                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                    {q.totalRespostas} resposta(s)
+                  </span>
+                </div>
+              </div>
+
+              {q.respostas.length === 0 ? (
+                <p className="text-gray-400 italic text-sm">
+                  {filtroUsuario 
+                    ? "Este usuário não respondeu esta pergunta."
+                    : "Nenhuma resposta encontrada."}
+                </p>
+              ) : (
+                <div className="space-y-3 pt-1">
+                  {q.tipo === "multipla" ? (
+                    <div className="space-y-3"> {/* Alterado de space-y-4 para space-y-3 */}
+                      {q.respostas.map((resp, i) => {
+                        const usuarioSelecionou = filtroUsuario 
+                          ? resp.usuariosIds.some(id => String(id) === String(filtroUsuario))
+                          : false;
+                        
+                        return (
+                          <div key={i} className="relative group">
+                            <div className={`flex items-center justify-between p-3 rounded-lg border-l-4 transition-all ${
+                              usuarioSelecionou
+                                ? 'bg-green-100 border-green-600'
+                                : 'bg-green-50 border-green-400 hover:bg-green-100'
+                            }`}>
+                              <div className="flex items-center gap-3">
+                                <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-green-300 text-green-700 text-xs font-bold">
+                                  {i + 1}
+                                </span>
+                                <span className="text-sm font-medium text-gray-800">
+                                  {resp.texto}
+                                </span>
+                                {usuarioSelecionou && (
+                                  <span className="ml-2 text-xs bg-green-600 text-white px-2 py-0.5 rounded">
+                                    Sua escolha
+                                  </span>
+                                )}
+                              </div>
+                              <span className="bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                {resp.contagem} voto(s)
+                              </span>
+                            </div>
+                            
+                            {!filtroUsuario && (
+                              <div className="absolute bottom-full left-4 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 min-w-[250px]">
+                                <p className="font-bold text-green-300 mb-2">
+                                  Quem escolheu esta opção:
+                                </p>
+                                {resp.usuariosNomes.length > 0 ? (
+                                  resp.usuariosNomes.map((nome, idx) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                      <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                                      <span>{nome}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-gray-400">Nenhum usuário identificado</p>
+                                )}
+                                <div className="absolute top-full left-8 transform -translate-x-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : q.tipo === "lista_alunos" ? (
+                    <div className="bg-gray-50 p-4 rounded-lg border">
+                      <p className="text-sm font-medium text-gray-700 mb-3">
+                        Alunos citados:
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {q.respostas.map((resp, i) => {
+                          const usuarioCitou = filtroUsuario 
+                            ? resp.usuariosIds.some(id => String(id) === String(filtroUsuario))
+                            : false;
+                          
+                          return (
+                            <div key={i} className="relative group bg-white p-3 rounded border hover:bg-green-50 transition-colors">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium">{resp.nome || resp.texto}</span>
+                                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                  {resp.usuariosNomes.length} citação(ões)
+                                </span>
+                              </div>
+                              
+                              {usuarioCitou && (
+                                <div className="mt-1 text-xs text-green-600 font-medium">
+                                  ✓ Você citou este aluno
+                                </div>
+                              )}
+                              
+                              {!filtroUsuario && (
+                                <div className="absolute bottom-full left-4 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 min-w-[250px]">
+                                  <p className="font-bold text-green-300 mb-2">
+                                    Quem citou este aluno:
+                                  </p>
+                                  {resp.usuariosNomes.length > 0 ? (
+                                    resp.usuariosNomes.map((nome, idx) => (
+                                      <div key={idx} className="flex items-center gap-2">
+                                        <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                                        <span>{nome}</span>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <p className="text-gray-400">Nenhum usuário identificado</p>
+                                  )}
+                                  <div className="absolute top-full left-8 transform -translate-x-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {q.respostas.map((resp, i) => {
+                        const usuarioRespondeu = filtroUsuario 
+                          ? resp.usuariosIds.some(id => String(id) === String(filtroUsuario))
+                          : false;
+                        
+                        return (
+                          <div key={i} className="relative group">
+                            <div className={`text-sm text-gray-700 p-4 rounded-lg border-l-4 transition-all ${
+                              usuarioRespondeu
+                                ? 'bg-green-100 border-green-600'
+                                : 'bg-green-50 border-green-400 hover:bg-green-100'
+                            }`}>
+                              {resp.texto}
+                              {usuarioRespondeu && (
+                                <div className="mt-2 text-xs text-green-600 font-medium">
+                                  ✓ Sua resposta
+                                </div>
+                              )}
+                            </div>
+
+                            {!filtroUsuario && (
+                              <div className="absolute bottom-full left-4 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 min-w-[250px]">
+                                <p className="font-bold text-green-300 mb-2">
+                                  Quem respondeu:
+                                </p>
+                                {resp.usuariosNomes.length > 0 ? (
+                                  resp.usuariosNomes.map((nome, idx) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                      <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                                      <span>{nome}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-gray-400">Nenhum usuário identificado</p>
+                                )}
+                                <div className="absolute top-full left-8 transform -translate-x-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+          
+          <button
+            onClick={gerarPDFProfissional}
+            className="w-full bg-green-800 text-white px-6 py-4 rounded-xl hover:bg-green-900 transition-all font-bold shadow-lg no-print mt-6"
+          >
+            Gerar Relatório (PDF)
+          </button>
+        </>
+      )}
+    </div>
+  </div>
+) : (
+  <div className="text-center py-32 bg-white border-2 border-dashed border-gray-200 rounded-2xl">
+    <p className="text-xl text-gray-400 font-medium">
+      Selecione uma Turma e um Questionário para começar.
+    </p>
+  </div>
+)}
       </div>
     </div>
   );
