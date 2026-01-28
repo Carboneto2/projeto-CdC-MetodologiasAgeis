@@ -75,13 +75,40 @@ def formularios():
     conn.close()
     return jsonify(msg), status
 
-@app.route('/formularios/<int:id>', methods=['DELETE'])
-def delete_form(id):
-    conn = get_db()
-    conn.execute('DELETE FROM Formulario WHERE id = ?', (id,))
-    conn.commit()
-    conn.close()
-    return jsonify({'msg': 'Deletado'}), 200
+@app.route('/formularios/<int:id>', methods=['PUT', 'DELETE'])
+def formulario_detalhe(id):
+    try:
+        db = get_db()
+
+        if request.method == 'PUT':
+            data = request.get_json()
+
+            titulo = data.get('titulo')
+            descricao = data.get('descricao')
+            perguntas = json.dumps(data.get('perguntas', []))
+
+            db.execute(
+                """
+                UPDATE Formulario
+                SET titulo = ?, descricao = ?, perguntas_json = ?
+                WHERE id = ?
+                """,
+                (titulo, descricao, perguntas, id)
+            )
+            db.commit()
+
+            return jsonify({"message": "Formulário atualizado com sucesso"}), 200
+
+        if request.method == 'DELETE':
+            db.execute("DELETE FROM Formulario WHERE id = ?", (id,))
+            db.commit()
+
+            return jsonify({"message": "Formulário excluído com sucesso"}), 200
+
+    except Exception as e:
+        print("ERRO FORMULÁRIO DETALHE:", e)
+        return jsonify({"error": str(e)}), 500
+
 
 # --- ROTAS DE USUÁRIOS (ESTAVA FALTANDO ISTO AQUI!) ---
 @app.route('/usuarios', methods=['GET', 'POST'])
