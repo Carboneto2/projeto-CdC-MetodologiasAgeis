@@ -12,6 +12,13 @@ const CARGOS_SISTEMA = [
   "NEPGES"
 ];
 
+const TIPOS_PERGUNTAS = [
+  { value: "texto", label: "Texto curto" },
+  { value: "texto_longo", label: "Texto longo" },
+  { value: "multipla", label: "Múltipla escolha" },
+  { value: "lista_alunos", label: "Lista de Alunos" }
+];
+
 export default function FormBuilderView() {
   const [titulo, setTitulo] = useState("Conselho de Classe — Modelo Novo");
   const [descricao, setDescricao] = useState("Descrição do formulário...");
@@ -43,7 +50,7 @@ export default function FormBuilderView() {
 
     setTitulo("Conselho de Classe — Modelo Oficial Completo");
     setDescricao("Análise por setores: Docente, NAE, NAPNE, NEPGES e NEABI.");
-    setPerfisFormulario([...CARGOS_SISTEMA]); // Todos os perfis podem ver este formulário
+    setPerfisFormulario([...CARGOS_SISTEMA]);
 
     const P_DOCENTE = ["Docente", "Coordenador"];
     const P_NAE_PSICO = ["NAE - Atendimento Psicológico", "Coordenador"];
@@ -52,9 +59,11 @@ export default function FormBuilderView() {
     const P_NEPGES = ["NEPGES", "Coordenador"];
     const P_NEABI = ["NEABI", "Coordenador"];
 
+    // IMPORTANTE: Mantemos o tipo "lista_alunos" para as novas perguntas
+    // mas o sistema continuará funcionando com formulários antigos
     setPerguntas([
-      { id: generateId(), tipo: "texto_longo", enunciado: "Qual(is) é(são) o(s) estudante(s) destaque(s)?", perfis: P_DOCENTE },
-      { id: generateId(), tipo: "texto_longo", enunciado: "Qual(is) é(são) o(s) estudante(s) infrequente(s)?", perfis: P_DOCENTE },
+      { id: generateId(), tipo: "lista_alunos", enunciado: "Qual(is) é(são) o(s) estudante(s) destaque(s)?", perfis: P_DOCENTE },
+      { id: generateId(), tipo: "lista_alunos", enunciado: "Qual(is) é(são) o(s) estudante(s) infrequente(s)?", perfis: P_DOCENTE },
       { 
         id: generateId(), 
         tipo: "multipla", 
@@ -70,12 +79,12 @@ export default function FormBuilderView() {
         perfis: P_DOCENTE 
       },
       { id: generateId(), tipo: "multipla", enunciado: "3. Sugere encaminhamento ao psicológico?", opcoes: ["Sim", "Não"], perfis: P_DOCENTE },
-      { id: generateId(), tipo: "texto_longo", enunciado: "3.1. Se sim, qual(is) estudante(s) sugere para o psicológico?", perfis: P_DOCENTE },
-      { id: generateId(), tipo: "texto_longo", enunciado: "4. Qual(is) discente(s) apresenta(m) maior dificuldade de aprendizagem?", perfis: P_DOCENTE },
-      { id: generateId(), tipo: "texto_longo", enunciado: "5. Quais estudantes não atingiram a média no trimestre?", perfis: P_DOCENTE },
-      { id: generateId(), tipo: "texto_longo", enunciado: "7. (NAE Social) Qual(is) estudante(s) atendido(s) pelo Serviço Social?", perfis: P_NAE_SOCIAL },
-      { id: generateId(), tipo: "texto_longo", enunciado: "8. (NAE Psico) Qual(is) estudante(s) atendido(s) pelo serviço psicológico?", perfis: P_NAE_PSICO },
-      { id: generateId(), tipo: "texto_longo", enunciado: "9. (NAPNE) Relação de discentes com necessidades específicas:", perfis: P_NAPNE },
+      { id: generateId(), tipo: "lista_alunos", enunciado: "3.1. Se sim, qual(is) estudante(s) sugere para o psicológico?", perfis: P_DOCENTE },
+      { id: generateId(), tipo: "lista_alunos", enunciado: "4. Qual(is) discente(s) apresenta(m) maior dificuldade de aprendizagem?", perfis: P_DOCENTE },
+      { id: generateId(), tipo: "lista_alunos", enunciado: "5. Quais estudantes não atingiram a média no trimestre?", perfis: P_DOCENTE },
+      { id: generateId(), tipo: "lista_alunos", enunciado: "7. (NAE Social) Qual(is) estudante(s) atendido(s) pelo Serviço Social?", perfis: P_NAE_SOCIAL },
+      { id: generateId(), tipo: "lista_alunos", enunciado: "8. (NAE Psico) Qual(is) estudante(s) atendido(s) pelo serviço psicológico?", perfis: P_NAE_PSICO },
+      { id: generateId(), tipo: "lista_alunos", enunciado: "9. (NAPNE) Relação de discentes com necessidades específicas:", perfis: P_NAPNE },
       { id: generateId(), tipo: "multipla", enunciado: "10. (NEPGES) Ações sobre gênero e sexualidade?", opcoes: ["Sim", "Não"], perfis: P_NEPGES },
       { id: generateId(), tipo: "texto_longo", enunciado: "10.1. Relate as ações:", perfis: P_NEPGES },
       { id: generateId(), tipo: "multipla", enunciado: "11. (NEABI) Ações sobre relações étnico-raciais?", opcoes: ["Sim", "Não"], perfis: P_NEABI },
@@ -129,8 +138,8 @@ export default function FormBuilderView() {
           id: editandoId,
           titulo, 
           descricao, 
-          perfis: perfisFormulario, // Perfis que podem VER o formulário
-          perguntas // Perguntas com seus próprios perfis (quem pode RESPONDER)
+          perfis: perfisFormulario,
+          perguntas // Mantemos o formato original do array de perguntas
         })
       });
       
@@ -156,7 +165,7 @@ export default function FormBuilderView() {
     setEditandoId(form.id);
     setTitulo(form.titulo);
     setDescricao(form.descricao || "");
-    setPerfisFormulario(form.perfis || [...CARGOS_SISTEMA]); // Carrega os perfis do formulário
+    setPerfisFormulario(form.perfis || [...CARGOS_SISTEMA]);
     setPerguntas(form.perguntas || []);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -184,6 +193,74 @@ export default function FormBuilderView() {
     setDescricao("Descrição do formulário...");
     setPerfisFormulario([...CARGOS_SISTEMA]);
     setPerguntas([]);
+  };
+
+  // Renderiza configurações específicas para cada tipo de pergunta
+  const renderConfigTipoPergunta = (pergunta) => {
+    switch (pergunta.tipo) {
+      case "multipla":
+        return (
+          <div className="p-3 bg-gray-50 rounded-lg border">
+            <label className="text-xs font-bold text-gray-500 uppercase block mb-1">
+              Opções de resposta (separadas por vírgula)
+            </label>
+            <input
+              className="w-full border p-2 rounded bg-white text-sm"
+              value={(pergunta.opcoes || []).join(", ")}
+              onChange={(e) =>
+                updatePergunta(
+                  pergunta.id,
+                  "opcoes",
+                  e.target.value.split(",").map(o => o.trim()).filter(o => o.length > 0)
+                )
+              }
+              placeholder="Ex: Sim, Não, Talvez"
+            />
+            <div className="text-xs text-gray-500 mt-1">
+              {pergunta.opcoes?.length || 0} opção(ões) configurada(s)
+            </div>
+          </div>
+        );
+
+      case "lista_alunos":
+        return (
+          <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-green-700">✓</span>
+              <span className="text-xs font-bold text-green-700 uppercase">
+                Tipo: Lista de Alunos
+              </span>
+            </div>
+            <p className="text-xs text-gray-600 mb-1">
+              Esta pergunta exibirá uma lista com todos os alunos da turma selecionada.
+            </p>
+            <p className="text-xs text-gray-500">
+              O usuário poderá selecionar múltiplos alunos. Os dados serão salvos como uma lista de nomes separados por vírgula.
+            </p>
+          </div>
+        );
+
+      case "texto":
+        return (
+          <div className="p-3 bg-gray-50 rounded-lg border">
+            <p className="text-xs text-gray-600">
+              Campo de texto curto (uma linha)
+            </p>
+          </div>
+        );
+
+      case "texto_longo":
+        return (
+          <div className="p-3 bg-gray-50 rounded-lg border">
+            <p className="text-xs text-gray-600">
+              Campo de texto longo (várias linhas)
+            </p>
+          </div>
+        );
+
+      default:
+        return null;
+    }
   };
 
   return (
@@ -302,24 +379,15 @@ export default function FormBuilderView() {
             <span className="text-sm font-bold text-gray-700 w-full">
               Adicionar pergunta
             </span>
-            <button
-              onClick={() => addPergunta("texto")}
-              className="bg-white border px-4 py-1.5 rounded-lg text-sm hover:bg-gray-100"
-            >
-              Texto curto
-            </button>
-            <button
-              onClick={() => addPergunta("texto_longo")}
-              className="bg-white border px-4 py-1.5 rounded-lg text-sm hover:bg-gray-100"
-            >
-              Texto longo
-            </button>
-            <button
-              onClick={() => addPergunta("multipla")}
-              className="bg-white border px-4 py-1.5 rounded-lg text-sm hover:bg-gray-100"
-            >
-              Múltipla escolha
-            </button>
+            {TIPOS_PERGUNTAS.map(tipo => (
+              <button
+                key={tipo.value}
+                onClick={() => addPergunta(tipo.value)}
+                className="bg-white border px-4 py-1.5 rounded-lg text-sm hover:bg-gray-100"
+              >
+                {tipo.label}
+              </button>
+            ))}
             <div className="ml-auto text-xs text-gray-500">
               {perguntas.length} pergunta(s) adicionada(s)
             </div>
@@ -344,10 +412,10 @@ export default function FormBuilderView() {
                         <span className="bg-gray-800 text-white text-xs px-2 py-0.5 rounded-full">
                           Q{idx + 1}
                         </span>
-                        <span className="text-xs font-bold text-gray-400 uppercase">
-                          {p.tipo === "texto" ? "Texto curto" : 
-                           p.tipo === "texto_longo" ? "Texto longo" : 
-                           "Múltipla escolha"}
+                        <span className={`text-xs font-bold uppercase ${
+                          p.tipo === "lista_alunos" ? "text-green-700" : "text-gray-400"
+                        }`}>
+                          {TIPOS_PERGUNTAS.find(t => t.value === p.tipo)?.label || p.tipo}
                         </span>
                       </div>
                       <input
@@ -368,28 +436,8 @@ export default function FormBuilderView() {
                     </button>
                   </div>
 
-                  {p.tipo === "multipla" && (
-                    <div className="p-3 bg-gray-50 rounded-lg border">
-                      <label className="text-xs font-bold text-gray-500 uppercase block mb-1">
-                        Opções de resposta (separadas por vírgula)
-                      </label>
-                      <input
-                        className="w-full border p-2 rounded bg-white text-sm"
-                        value={(p.opcoes || []).join(", ")}
-                        onChange={(e) =>
-                          updatePergunta(
-                            p.id,
-                            "opcoes",
-                            e.target.value.split(",").map(o => o.trim()).filter(o => o.length > 0)
-                          )
-                        }
-                        placeholder="Ex: Sim, Não, Talvez"
-                      />
-                      <div className="text-xs text-gray-500 mt-1">
-                        {p.opcoes?.length || 0} opção(ões) configurada(s)
-                      </div>
-                    </div>
-                  )}
+                  {/* CONFIGURAÇÕES ESPECÍFICAS DO TIPO */}
+                  {renderConfigTipoPergunta(p)}
 
                   {/* PERFIS DA PERGUNTA (QUEM PODE RESPONDER) */}
                   <div className="pt-3 border-t">
@@ -467,6 +515,9 @@ export default function FormBuilderView() {
                   <div className="flex flex-wrap gap-2 mt-2">
                     <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
                       {f.perguntas?.length || 0} questões
+                    </span>
+                    <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+                      {f.perguntas?.filter(p => p.tipo === "lista_alunos").length || 0} lista(s) de alunos
                     </span>
                     {f.perfis && f.perfis.length > 0 && (
                       <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">

@@ -61,6 +61,7 @@ export default function AreaRestritaView() {
         });
     };
 
+    // Mantida para compatibilidade com formulários antigos
     const isStudentSelector = (enunciado) => {
         if (!enunciado) return false;
         const texto = enunciado.toLowerCase();
@@ -101,7 +102,23 @@ export default function AreaRestritaView() {
         for (const [key, value] of Object.entries(fill)) {
             const q = perguntasFiltradas.find(p => p.id === key);
             if (!q) continue;
-            payloadFinal[key] = Array.isArray(value) ? value.join(', ') : value;
+            
+            // Para lista de alunos, converter array de IDs para string de nomes separados por vírgula
+            if (q.tipo === "lista_alunos") {
+                if (Array.isArray(value) && value.length > 0) {
+                    // Converter IDs para nomes
+                    const nomes = value.map(id => {
+                        const aluno = alunosDaTurma.find(a => a.id === id);
+                        return aluno ? aluno.nome : '';
+                    }).filter(nome => nome !== '');
+                    payloadFinal[key] = nomes.join(', ');
+                } else {
+                    payloadFinal[key] = '';
+                }
+            } else {
+                // Para outros tipos, manter formato original
+                payloadFinal[key] = Array.isArray(value) ? value.join(', ') : value;
+            }
         }
 
         try {
@@ -135,6 +152,152 @@ export default function AreaRestritaView() {
         alunos.filter(a => String(a.turmaId) === String(fillTurmaId)), 
         [alunos, fillTurmaId]
     );
+
+    // Renderiza o campo de resposta baseado no tipo da pergunta
+    const renderCampoResposta = (pergunta) => {
+        // Para formulários antigos sem tipo definido, usar detecção por texto
+        if (!pergunta.tipo) {
+            if (isStudentSelector(pergunta.enunciado)) {
+                return renderListaAlunos(pergunta);
+            } else {
+                return (
+                    <textarea
+                        className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-700"
+                        rows={3}
+                        placeholder="Digite sua resposta..."
+                        value={fill[pergunta.id] || ""}
+                        onChange={e => setFill({ ...fill, [pergunta.id]: e.target.value })}
+                    />
+                );
+            }
+        }
+
+        switch (pergunta.tipo) {
+            case "lista_alunos":
+                return renderListaAlunos(pergunta);
+
+            case "multipla":
+                return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {pergunta.opcoes?.map(op => (
+                            <label key={op} className="flex items-center gap-2 p-2 rounded cursor-pointer border hover:bg-gray-50">
+                                <input
+                                    type="checkbox"
+                                    className="w-4 h-4 accent-green-700"
+                                    checked={(fill[pergunta.id] || []).includes(op)}
+                                    onChange={e => {
+                                        const atual = fill[pergunta.id] || [];
+                                        setFill({
+                                            ...fill,
+                                            [pergunta.id]: e.target.checked
+                                                ? [...atual, op]
+                                                : atual.filter(x => x !== op)
+                                        });
+                                    }}
+                                />
+                                <span className="text-sm">{op}</span>
+                            </label>
+                        ))}
+                    </div>
+                );
+
+            case "texto":
+                return (
+                    <input
+                        type="text"
+                        className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-700"
+                        placeholder="Digite sua resposta..."
+                        value={fill[pergunta.id] || ""}
+                        onChange={e => setFill({ ...fill, [pergunta.id]: e.target.value })}
+                    />
+                );
+
+            case "texto_longo":
+            default:
+                // Se for texto longo mas o enunciado sugerir lista de alunos, renderizar como lista
+                if (isStudentSelector(pergunta.enunciado)) {
+                    return renderListaAlunos(pergunta);
+                }
+                return (
+                    <textarea
+                        className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-700"
+                        rows={3}
+                        placeholder="Digite sua resposta..."
+                        value={fill[pergunta.id] || ""}
+                        onChange={e => setFill({ ...fill, [pergunta.id]: e.target.value })}
+                    />
+                );
+        }
+    };
+
+    const renderListaAlunos = (pergunta) => {
+        return (
+            <div className="bg-gray-50 p-4 rounded-xl border">
+                <p className="text-xs text-gray-600 mb-3 font-bold uppercase">
+                    Selecione os estudantes:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                    {alunosDaTurma.length === 0 ? (
+                        <div className="col-span-2 text-center py-4 text-gray-500">
+                            Nenhum aluno cadastrado nesta turma.
+                        </div>
+                    ) : (
+                        alunosDaTurma.map(a => {
+                            const selecionado = (fill[pergunta.id] || []).includes(a.id);
+                            return (
+                                <div
+                                    key={a.id}
+                                    onClick={() => {
+                                        const atual = fill[pergunta.id] || [];
+                                        setFill({
+                                            ...fill,
+                                            [pergunta.id]: selecionado
+                                                ? atual.filter(x => x !== a.id)
+                                                : [...atual, a.id]
+                                        });
+                                    }}
+                                    className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer ${selecionado ? 'bg-green-50 border-green-600' : 'bg-white hover:bg-gray-100'}`}
+                                >
+                                    <div
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                            setZoomFoto(a.foto);
+                                        }}
+                                        className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden border flex-shrink-0"
+                                    >
+                                        {a.foto ? (
+                                            <img 
+                                                src={a.foto} 
+                                                alt={a.nome}
+                                                className="w-full h-full object-cover" 
+                                            />
+                                        ) : (
+                                            <span className="flex items-center justify-center h-full text-xs text-gray-500">
+                                                Sem foto
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex-1">
+                                        <span className="text-sm font-medium block">{a.nome}</span>
+                                        <span className="text-xs text-gray-500">Matrícula: {a.matricula || 'N/A'}</span>
+                                    </div>
+                                    {selecionado && <span className="ml-auto text-green-700 font-bold">✔</span>}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+                <div className="mt-2 text-xs text-gray-600">
+                    <strong>Selecionados:</strong> {
+                        (fill[pergunta.id] || [])
+                            .map(id => alunosDaTurma.find(a => a.id === id)?.nome)
+                            .filter(nome => nome)
+                            .join(", ") || "Nenhum"
+                    }
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="bg-gray-100 min-h-[calc(100vh-64px)]">
@@ -251,107 +414,36 @@ export default function AreaRestritaView() {
                                             Você não tem permissão para responder nenhuma pergunta deste formulário.
                                         </div>
                                     ) : (
-                                        selectedForm.perguntasFiltradas?.map((p, i) => (
-                                            <div key={p.id} className="border-b pb-6">
-                                                <div className="font-bold mb-3 text-gray-800">
-                                                    {i + 1}. {p.enunciado}
-                                                    {p.perfis && p.perfis.length > 0 && (
-                                                        <span className="ml-2 text-xs text-blue-600">
-                                                            (Permitido para: {p.perfis.join(', ')})
+                                        selectedForm.perguntasFiltradas?.map((p, i) => {
+                                            // Determinar tipo para exibição
+                                            let tipoExibicao = p.tipo || "texto_longo";
+                                            if (!p.tipo && isStudentSelector(p.enunciado)) {
+                                                tipoExibicao = "lista_alunos (detectado)";
+                                            } else if (p.tipo === "texto_longo" && isStudentSelector(p.enunciado)) {
+                                                tipoExibicao = "lista_alunos (detectado)";
+                                            }
+                                            
+                                            return (
+                                                <div key={p.id} className="border-b pb-6">
+                                                    <div className="font-bold mb-3 text-gray-800">
+                                                        {i + 1}. {p.enunciado}
+                                                        {p.perfis && p.perfis.length > 0 && (
+                                                            <span className="ml-2 text-xs text-blue-600">
+                                                                (Permitido para: {p.perfis.join(', ')})
+                                                            </span>
+                                                        )}
+                                                        <span className="ml-2 text-xs bg-gray-200 px-2 py-1 rounded">
+                                                            {tipoExibicao === "lista_alunos" ? "Lista de Alunos" : 
+                                                             tipoExibicao === "lista_alunos (detectado)" ? "Lista de Alunos (Detectado)" :
+                                                             tipoExibicao === "multipla" ? "Múltipla Escolha" : 
+                                                             tipoExibicao === "texto" ? "Texto Curto" : "Texto Longo"}
                                                         </span>
-                                                    )}
-                                                </div>
+                                                    </div>
 
-                                                {p.tipo === "texto_longo" && isStudentSelector(p.enunciado) ? (
-                                                    <div className="bg-gray-50 p-4 rounded-xl border">
-                                                        <p className="text-xs text-gray-600 mb-3 font-bold uppercase">
-                                                            Selecione os estudantes:
-                                                        </p>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto">
-                                                            {alunosDaTurma.length === 0 ? (
-                                                                <div className="col-span-2 text-center py-4 text-gray-500">
-                                                                    Nenhum aluno cadastrado nesta turma.
-                                                                </div>
-                                                            ) : (
-                                                                alunosDaTurma.map(a => {
-                                                                    const selecionado = (fill[p.id] || []).includes(a.nome);
-                                                                    return (
-                                                                        <div
-                                                                            key={a.id}
-                                                                            onClick={() => {
-                                                                                const atual = fill[p.id] || [];
-                                                                                setFill({
-                                                                                    ...fill,
-                                                                                    [p.id]: selecionado
-                                                                                        ? atual.filter(x => x !== a.nome)
-                                                                                        : [...atual, a.nome]
-                                                                                });
-                                                                            }}
-                                                                            className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer ${selecionado ? 'bg-green-50 border-green-600' : 'bg-white hover:bg-gray-100'}`}
-                                                                        >
-                                                                            <div
-                                                                                onClick={e => {
-                                                                                    e.stopPropagation();
-                                                                                    setZoomFoto(a.foto);
-                                                                                }}
-                                                                                className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden border flex-shrink-0"
-                                                                            >
-                                                                                {a.foto ? (
-                                                                                    <img 
-                                                                                        src={a.foto} 
-                                                                                        alt={a.nome}
-                                                                                        className="w-full h-full object-cover" 
-                                                                                    />
-                                                                                ) : (
-                                                                                    <span className="flex items-center justify-center h-full text-xs text-gray-500">
-                                                                                        Sem foto
-                                                                                    </span>
-                                                                                )}
-                                                                            </div>
-                                                                            <span className="text-sm font-medium">{a.nome}</span>
-                                                                            {selecionado && <span className="ml-auto text-green-700 font-bold">✔</span>}
-                                                                        </div>
-                                                                    );
-                                                                })
-                                                            )}
-                                                        </div>
-                                                        <div className="mt-2 text-xs text-gray-600">
-                                                            <strong>Selecionados:</strong> {(fill[p.id] || []).join(", ") || "Nenhum"}
-                                                        </div>
-                                                    </div>
-                                                ) : p.tipo === "multipla" ? (
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                                        {p.opcoes?.map(op => (
-                                                            <label key={op} className="flex items-center gap-2 p-2 rounded cursor-pointer border hover:bg-gray-50">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    className="w-4 h-4 accent-green-700"
-                                                                    checked={(fill[p.id] || []).includes(op)}
-                                                                    onChange={e => {
-                                                                        const atual = fill[p.id] || [];
-                                                                        setFill({
-                                                                            ...fill,
-                                                                            [p.id]: e.target.checked
-                                                                                ? [...atual, op]
-                                                                                : atual.filter(x => x !== op)
-                                                                        });
-                                                                    }}
-                                                                />
-                                                                <span className="text-sm">{op}</span>
-                                                            </label>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <textarea
-                                                        className="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-700"
-                                                        rows={3}
-                                                        placeholder="Digite sua resposta..."
-                                                        value={fill[p.id] || ""}
-                                                        onChange={e => setFill({ ...fill, [p.id]: e.target.value })}
-                                                    />
-                                                )}
-                                            </div>
-                                        ))
+                                                    {renderCampoResposta(p)}
+                                                </div>
+                                            );
+                                        })
                                     )
                                 ) : (
                                     <div className="text-center py-10 text-gray-400">
@@ -401,4 +493,4 @@ export default function AreaRestritaView() {
             </div>
         </div>
     );
-}
+}   
