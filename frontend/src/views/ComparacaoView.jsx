@@ -3,7 +3,6 @@ import { useTurmas } from "../hooks/useTurmas";
 import { useAlunos } from "../hooks/useAlunos";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-
 import { Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function ComparacaoView() {
@@ -38,8 +37,10 @@ export default function ComparacaoView() {
         if (resRespostas.ok) setTodasRespostas(await resRespostas.json());
         if (resUsuarios.ok) {
           const usuariosData = await resUsuarios.json();
-          console.log("Usuários carregados:", usuariosData);
-          setUsuarios(usuariosData);
+          // Garante que seja um array, caso o backend retorne { data: [...] }
+          const listaReal = Array.isArray(usuariosData) ? usuariosData : (usuariosData.data || []);
+          console.log("Usuários carregados:", listaReal);
+          setUsuarios(listaReal);
         }
       } catch (e) {
         console.error("Erro ao carregar dados:", e);
@@ -54,6 +55,92 @@ export default function ComparacaoView() {
   useEffect(() => {
     setFiltroUsuario(null);
   }, [filtroTurma, filtroForm]);
+
+  // --- 2. MAPA DE USUÁRIOS (OTIMIZAÇÃO CRÍTICA) ---
+  // Transforma o array de usuários em um Objeto para busca instantânea por ID
+  const mapaUsuarios = useMemo(() => {
+    const mapa = {};
+    usuarios.forEach(u => {
+      // Mapeia pelo ID numérico e string
+      if (u.id) {
+        mapa[String(u.id)] = u;
+        mapa[Number(u.id)] = u;
+      }
+      // Suporte para bancos MongoDB (_id)
+      if (u._id) {
+        mapa[String(u._id)] = u;
+      }
+    });
+    return mapa;
+  }, [usuarios]);
+
+  // --- FUNÇÃO AUXILIAR PARA EXTRAIR ID DO USUÁRIO (ROBUSTA) ---
+  const extrairUsuarioId = (resposta) => {
+    if (!resposta) return null;
+    
+    // Verifica todas as variações possíveis de chaves de ID
+    const keys = ['usuario_id', 'id_usuario', 'userId', 'user_id', 'usuarioId'];
+    for (let key of keys) {
+      if (resposta[key] !== undefined && resposta[key] !== null) {
+        return String(resposta[key]);
+      }
+    }
+    
+    // Fallback: id (se for numérico e baixo, provável ser user ID em sistemas legados)
+    if (resposta.id && !isNaN(Number(resposta.id)) && Number(resposta.id) < 100000) {
+      return String(resposta.id);
+    }
+    
+    // Fallback: Perfil
+    if (resposta.perfil_usuario) {
+        // Se for numérico, trata como ID
+        if (!isNaN(Number(resposta.perfil_usuario))) {
+          return String(resposta.perfil_usuario);
+        }
+        return `perfil_${resposta.perfil_usuario}`;
+    }
+    
+    return null;
+  };
+
+  // --- FUNÇÃO AUXILIAR PARA ENCONTRAR NOME (CORRIGIDA) ---
+  const encontrarNomeUsuario = (usuarioId) => {
+    if (!usuarioId || usuarioId === 'undefined' || usuarioId === 'null') {
+      return 'Não identificado';
+    }
+
+    const idString = String(usuarioId);
+
+    // 1. Tenta buscar no mapa indexado (Muito mais rápido e preciso)
+    const usuarioEncontrado = mapaUsuarios[idString];
+
+    if (usuarioEncontrado) {
+      const nome = usuarioEncontrado.nome || 
+                   usuarioEncontrado.username || 
+                   usuarioEncontrado.login || 
+                   `Usuário ${idString}`;
+      
+      const perfil = usuarioEncontrado.perfil || usuarioEncontrado.role;
+      
+      if (perfil && perfil !== 'Não informado') {
+        return `${nome} (${perfil})`;
+      }
+      return nome;
+    }
+
+    // 2. Se for ID 1 e não achou, geralmente é Admin
+    if (idString === '1') {
+      return 'Administrador';
+    }
+
+    // 3. Tratamento para Perfis (ex: perfil_Coordenador)
+    if (idString.startsWith('perfil_')) {
+      return idString.replace('perfil_', '');
+    }
+
+    // 4. Se não achou de jeito nenhum
+    return `Usuário ${idString}`;
+  };
 
   // --- FUNÇÃO PARA GERAR PDF PROFISSIONAL ---
   const gerarPDFProfissional = async () => {
@@ -110,10 +197,9 @@ export default function ComparacaoView() {
 
     // --- CONTEÚDO DO RELATÓRIO ---
     const questoesParaPDF = filtroUsuario 
-      ? relatorioQualitativo.questoes.filter(q => q.totalRespostas > 0) // Apenas perguntas respondidas
+      ? relatorioQualitativo.questoes.filter(q => q.totalRespostas > 0)
       : relatorioQualitativo.questoes;
 
-    // Função para adicionar nova página se necessário
     const checkNewPage = (spaceNeeded) => {
       if (yPosition + spaceNeeded > pdf.internal.pageSize.getHeight() - margin) {
         pdf.addPage();
@@ -123,24 +209,19 @@ export default function ComparacaoView() {
       return false;
     };
 
-    // Processar cada questão
     for (let idx = 0; idx < questoesParaPDF.length; idx++) {
       const q = questoesParaPDF[idx];
       
-      // Verificar se precisa de nova página
       checkNewPage(20);
       
-      // Título da questão
       pdf.setFontSize(14);
       pdf.setFont("helvetica", "bold");
       pdf.setTextColor(0, 0, 0);
       
-      // Quebrar texto longo do enunciado
       const enunciadoLines = pdf.splitTextToSize(`${idx + 1}. ${q.enunciado}`, pageWidth - 2 * margin);
       pdf.text(enunciadoLines, margin, yPosition);
       yPosition += (enunciadoLines.length * 7) + 5;
       
-      // Subtipo da questão
       pdf.setFontSize(10);
       pdf.setFont("helvetica", "italic");
       pdf.setTextColor(100, 100, 100);
@@ -149,7 +230,6 @@ export default function ComparacaoView() {
                q.tipo === "texto" ? "Texto Curto" : "Texto Longo"}`, margin, yPosition);
       yPosition += 7;
       
-      // Respostas
       if (q.respostas.length === 0) {
         pdf.setFontSize(11);
         pdf.setFont("helvetica", "normal");
@@ -157,11 +237,9 @@ export default function ComparacaoView() {
         pdf.text("Nenhuma resposta registrada.", margin, yPosition);
         yPosition += 10;
       } else {
-        // Para múltipla escolha - exibir resultados em tabela
         if (q.tipo === "multipla") {
           checkNewPage(30);
           
-          // Cabeçalho da tabela
           pdf.setFontSize(11);
           pdf.setFont("helvetica", "bold");
           pdf.setTextColor(0, 0, 0);
@@ -170,21 +248,18 @@ export default function ComparacaoView() {
           pdf.text("Votos", pageWidth - margin - 20, yPosition, { align: "right" });
           yPosition += 7;
           
-          // Linha da tabela
           pdf.setDrawColor(200, 200, 200);
           pdf.setLineWidth(0.2);
           pdf.line(margin, yPosition - 3, pageWidth - margin, yPosition - 3);
           yPosition += 5;
           
-          // Conteúdo da tabela
           pdf.setFont("helvetica", "normal");
-          q.respostas.forEach((resp, i) => {
+          q.respostas.forEach((resp) => {
             checkNewPage(10);
             
             pdf.text(resp.texto, margin, yPosition);
             pdf.text(`${resp.contagem}`, pageWidth - margin - 20, yPosition, { align: "right" });
             
-            // Se filtrado por usuário, mostrar se ele escolheu esta opção
             if (filtroUsuario) {
               const usuarioEscolheu = resp.usuariosIds.some(id => String(id) === String(filtroUsuario));
               if (usuarioEscolheu) {
@@ -196,45 +271,36 @@ export default function ComparacaoView() {
             
             yPosition += 7;
           });
-          
           yPosition += 10;
           
         } else if (q.tipo === "lista_alunos") {
-          // Para lista de alunos
           checkNewPage(30);
-          
           pdf.setFontSize(11);
           pdf.setFont("helvetica", "bold");
           pdf.text("Alunos citados:", margin, yPosition);
           yPosition += 7;
-          
           pdf.setFont("helvetica", "normal");
           
           const alunosPorLinha = 3;
           let alunosNaLinha = 0;
           let linhaAtualY = yPosition;
           
-          q.respostas.forEach((resp, i) => {
+          q.respostas.forEach((resp) => {
             if (alunosNaLinha === alunosPorLinha) {
               alunosNaLinha = 0;
               linhaAtualY += 7;
               checkNewPage(10);
             }
-            
             const alunoText = `${resp.nome || resp.texto} (${resp.usuariosNomes.length})`;
             const coluna = margin + (alunosNaLinha * 60);
             pdf.text(alunoText, coluna, linhaAtualY);
             alunosNaLinha++;
           });
-          
           yPosition = linhaAtualY + 15;
           
         } else {
-          // Para respostas textuais
-          q.respostas.forEach((resp, i) => {
+          q.respostas.forEach((resp) => {
             checkNewPage(30);
-            
-            // Resposta
             pdf.setFontSize(11);
             pdf.setFont("helvetica", "normal");
             pdf.setTextColor(0, 0, 0);
@@ -243,7 +309,6 @@ export default function ComparacaoView() {
             pdf.text(respostaLines, margin + 5, yPosition);
             yPosition += (respostaLines.length * 6) + 5;
             
-            // Respondentes (se não for filtro individual)
             if (!filtroUsuario && resp.usuariosNomes.length > 0) {
               pdf.setFontSize(9);
               pdf.setFont("helvetica", "italic");
@@ -254,151 +319,38 @@ export default function ComparacaoView() {
               pdf.text(respondentesLines, margin + 10, yPosition);
               yPosition += (respondentesLines.length * 5) + 5;
             }
-            
             yPosition += 5;
           });
         }
       }
-      
-      // Espaço entre questões
       yPosition += 10;
-      
-      // Adicionar página se estiver no final
       if (yPosition > pdf.internal.pageSize.getHeight() - 30) {
         pdf.addPage();
         yPosition = margin;
       }
     }
     
-    // --- RODAPÉ ---
     const pageCount = pdf.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       pdf.setPage(i);
       pdf.setFontSize(8);
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(150, 150, 150);
-      
-      // Número da página
-      pdf.text(
-        `Página ${i} de ${pageCount}`,
-        pageWidth / 2,
-        pdf.internal.pageSize.getHeight() - 10,
-        { align: "center" }
-      );
-      
-      // Logo/Instituição
-      pdf.text(
-        "Instituto Federal - Sistema de Conselho de Classe",
-        margin,
-        pdf.internal.pageSize.getHeight() - 10
-      );
+      pdf.text(`Página ${i} de ${pageCount}`, pageWidth / 2, pdf.internal.pageSize.getHeight() - 10, { align: "center" });
+      pdf.text("Instituto Federal - Sistema de Conselho de Classe", margin, pdf.internal.pageSize.getHeight() - 10);
     }
     
-    // Salvar PDF
     const nomeArquivo = `Relatorio_Conselho_${turmaSelecionada?.nome || 'Turma'}_${dataAtual.replace(/\//g, '-')}.pdf`;
     pdf.save(nomeArquivo);
-  };
-
-  // --- FUNÇÃO AUXILIAR PARA ENCONTRAR NOME DO USUÁRIO (COMPATÍVEL COM O CADASTRO) ---
-  const encontrarNomeUsuario = (usuarioId) => {
-    if (!usuarioId || usuarioId === 'undefined' || usuarioId === 'null') {
-      return 'Usuário Desconhecido';
-    }
-
-    console.log(`Buscando usuário com ID: ${usuarioId}`, usuarios);
-
-    // Se o ID começar com "perfil_", é um perfil e não um ID numérico
-    if (String(usuarioId).startsWith('perfil_')) {
-      const perfil = String(usuarioId).replace('perfil_', '');
-      // Tenta encontrar usuário pelo perfil
-      const usuarioPorPerfil = usuarios.find(u => u.perfil === perfil);
-      if (usuarioPorPerfil) {
-        return usuarioPorPerfil.nome || `Usuário (${perfil})`;
-      }
-      return `Usuário (${perfil})`;
-    }
-
-    // Tenta encontrar pelo ID numérico (campo 'id' dos usuários cadastrados)
-    const usuarioEncontrado = usuarios.find(u => {
-      // Primeiro, tenta pelo campo 'id' (que é o campo usado no cadastro)
-      if (u.id && String(u.id) === String(usuarioId)) {
-        return true;
-      }
-      
-      // Tenta converter para número se possível
-      const idNumerico = Number(usuarioId);
-      if (!isNaN(idNumerico)) {
-        if (u.id === idNumerico) return true;
-      }
-      
-      return false;
-    });
-    
-    if (usuarioEncontrado) {
-      console.log(`Usuário encontrado:`, usuarioEncontrado);
-      // Usa o mesmo formato do cadastro: nome, login, etc.
-      return usuarioEncontrado.nome || 
-             usuarioEncontrado.username || 
-             usuarioEncontrado.login || 
-             `Usuário ${usuarioId}`;
-    }
-    
-    // Se não encontrou, retorna o ID formatado
-    return `Usuário ${usuarioId}`;
-  };
-
-  // --- FUNÇÃO AUXILIAR PARA EXTRAIR ID DO USUÁRIO ---
-  const extrairUsuarioId = (resposta) => {
-    if (!resposta) return null;
-    
-    // Verifica se há um campo específico de usuário
-    if (resposta.usuario_id) {
-      console.log(`Usando usuario_id: ${resposta.usuario_id}`);
-      return String(resposta.usuario_id);
-    }
-    
-    if (resposta.id_usuario) {
-      console.log(`Usando id_usuario: ${resposta.id_usuario}`);
-      return String(resposta.id_usuario);
-    }
-    
-    if (resposta.idusuario) {
-      console.log(`Usando idusuario: ${resposta.idusuario}`);
-      return String(resposta.idusuario);
-    }
-    
-    // Tenta campos comuns de ID
-    if (resposta.id && typeof resposta.id === 'number') {
-      console.log(`Usando id (numérico): ${resposta.id}`);
-      return String(resposta.id);
-    }
-    
-    // Se perfil_usuario for um número, pode ser o ID
-    if (resposta.perfil_usuario && !isNaN(Number(resposta.perfil_usuario))) {
-      console.log(`Usando perfil_usuario como ID (numérico): ${resposta.perfil_usuario}`);
-      return String(resposta.perfil_usuario);
-    }
-    
-    // Último recurso: se perfil_usuario for string, usa como identificador
-    if (resposta.perfil_usuario) {
-      console.log(`Usando perfil_usuario como string: ${resposta.perfil_usuario}`);
-      return `perfil_${resposta.perfil_usuario}`;
-    }
-    
-    console.log("Nenhum ID de usuário encontrado na resposta:", resposta);
-    return null;
   };
 
   // --- FUNÇÃO PARA AGRUPAR RESPOSTAS SIMILARES ---
   const agruparRespostasSimilares = (respostasComUsuarios) => {
     const agrupadas = {};
-    
     respostasComUsuarios.forEach(item => {
       if (!item || !item.texto) return;
-      
       const textoNormalizado = item.texto.trim().toLowerCase();
       const usuarioId = item.usuarioId;
-      
       if (!textoNormalizado) return;
       
       if (!agrupadas[textoNormalizado]) {
@@ -407,10 +359,7 @@ export default function ComparacaoView() {
           usuarios: new Set()
         };
       }
-      
-      if (usuarioId) {
-        agrupadas[textoNormalizado].usuarios.add(usuarioId);
-      }
+      if (usuarioId) agrupadas[textoNormalizado].usuarios.add(usuarioId);
     });
     
     return Object.values(agrupadas)
@@ -425,24 +374,16 @@ export default function ComparacaoView() {
   // --- FUNÇÃO PARA AGRUPAR NOMES CITADOS ---
   const agruparNomesCitados = (respostasComUsuarios) => {
     const nomesAgrupados = {};
-    
     respostasComUsuarios.forEach(item => {
       if (!item || !item.texto) return;
-      
       const nomes = item.texto.split(/[,;\n]/).map(n => n.trim()).filter(n => n.length > 2);
       const usuarioId = item.usuarioId;
       
       nomes.forEach(nome => {
         if (!nomesAgrupados[nome]) {
-          nomesAgrupados[nome] = {
-            nome: nome,
-            usuarios: new Set()
-          };
+          nomesAgrupados[nome] = { nome: nome, usuarios: new Set() };
         }
-        
-        if (usuarioId) {
-          nomesAgrupados[nome].usuarios.add(usuarioId);
-        }
+        if (usuarioId) nomesAgrupados[nome].usuarios.add(usuarioId);
       });
     });
     
@@ -456,19 +397,14 @@ export default function ComparacaoView() {
   // --- FUNÇÃO PARA AGRUPAR MULTIPLA ESCOLHA ---
   const agruparMultiplaEscolha = (respostasComUsuarios, opcoesPergunta) => {
     const opcoesAgrupadas = {};
-    
     if (opcoesPergunta && Array.isArray(opcoesPergunta)) {
       opcoesPergunta.forEach(opcao => {
-        opcoesAgrupadas[opcao] = {
-          texto: opcao,
-          usuarios: new Set()
-        };
+        opcoesAgrupadas[opcao] = { texto: opcao, usuarios: new Set() };
       });
     }
     
     respostasComUsuarios.forEach(item => {
       if (!item || !item.texto) return;
-      
       let respostasSelecionadas = [];
       const usuarioId = item.usuarioId;
       
@@ -482,17 +418,10 @@ export default function ComparacaoView() {
       
       respostasSelecionadas.forEach(resposta => {
         const respostaNormalizada = resposta.trim();
-        
         if (!opcoesAgrupadas[respostaNormalizada]) {
-          opcoesAgrupadas[respostaNormalizada] = {
-            texto: respostaNormalizada,
-            usuarios: new Set()
-          };
+          opcoesAgrupadas[respostaNormalizada] = { texto: respostaNormalizada, usuarios: new Set() };
         }
-        
-        if (usuarioId) {
-          opcoesAgrupadas[respostaNormalizada].usuarios.add(usuarioId);
-        }
+        if (usuarioId) opcoesAgrupadas[respostaNormalizada].usuarios.add(usuarioId);
       });
     });
     
@@ -507,7 +436,6 @@ export default function ComparacaoView() {
   };
 
   // --- 3. PROCESSAMENTO DOS DADOS (MEMO) ---
-
   const statsTurma = useMemo(() => {
     if (!filtroTurma) return null;
     const alunosDaTurma = alunos.filter(a => String(a.turmaId) === String(filtroTurma));
@@ -533,17 +461,12 @@ export default function ComparacaoView() {
       String(r.turma_id) === String(filtroTurma)
     );
 
-    console.log("Respostas base encontradas:", respostasBase.length);
-
     const participantesMap = {};
     
     respostasBase.forEach(resp => {
       const usuarioId = extrairUsuarioId(resp);
       
-      if (!usuarioId) {
-        console.log("Não foi possível extrair ID do usuário da resposta:", resp);
-        return;
-      }
+      if (!usuarioId) return;
 
       if (!participantesMap[usuarioId]) {
         const nomeUsuario = encontrarNomeUsuario(usuarioId);
@@ -556,9 +479,7 @@ export default function ComparacaoView() {
     });
     
     const listaParticipantes = Object.values(participantesMap);
-    console.log("Participantes mapeados:", listaParticipantes);
     
-    // Filtra respostas por usuário se necessário
     const respostasFiltradas = filtroUsuario 
       ? respostasBase.filter(r => {
           const respUsuarioId = extrairUsuarioId(r);
@@ -566,20 +487,16 @@ export default function ComparacaoView() {
         })
       : respostasBase;
 
-    // Processa as questões - FILTRANDO APENAS PERGUNTAS RESPONDIDAS QUANDO HÁ FILTRO DE USUÁRIO
     const todasQuestoes = modelo.perguntas;
     const perguntasParaExibir = filtroUsuario 
       ? todasQuestoes.filter(pergunta => {
-          // Verifica se há pelo menos uma resposta do usuário para esta pergunta
           return respostasFiltradas.some(r => {
             let textoResposta = null;
-            
             if (r.payload && typeof r.payload === 'object') {
               textoResposta = r.payload[pergunta.id];
             } else if (r.respostas) {
               textoResposta = r.respostas[pergunta.id];
             }
-            
             return textoResposta !== undefined && textoResposta !== null && textoResposta !== '';
           });
         })
@@ -589,7 +506,6 @@ export default function ComparacaoView() {
       const respostasComUsuarios = respostasFiltradas
         .map(r => {
           let textoResposta = null;
-          
           if (r.payload && typeof r.payload === 'object') {
             textoResposta = r.payload[pergunta.id];
           } else if (r.respostas) {
@@ -611,7 +527,10 @@ export default function ComparacaoView() {
         .filter(Boolean);
 
       const isPerguntaDeNomes = pergunta.tipo === "lista_alunos" || 
-        (pergunta.tipo === "texto_longo" && pergunta.enunciado.toLowerCase().match(/cite|quais|quem|aluno|estudante|discente/));
+        (pergunta.enunciado.toLowerCase().includes("aluno") && 
+         (pergunta.enunciado.toLowerCase().includes("cite") || 
+          pergunta.enunciado.toLowerCase().includes("liste") ||
+          pergunta.enunciado.toLowerCase().includes("quais alunos")));
       
       let respostasAgrupadas = [];
       
@@ -634,13 +553,6 @@ export default function ComparacaoView() {
       };
     });
 
-    console.log("Relatório qualitativo gerado:", {
-      totalGeral: respostasBase.length,
-      totalFiltrado: respostasFiltradas.length,
-      participantes: listaParticipantes,
-      questoes: consolidado
-    });
-
     return {
       totalGeral: respostasBase.length,
       totalFiltrado: respostasFiltradas.length,
@@ -648,9 +560,7 @@ export default function ComparacaoView() {
       questoes: consolidado
     };
 
-  }, [formularios, todasRespostas, usuarios, filtroForm, filtroTurma, filtroUsuario]);
-
-  const COLORS = ['#FF8042', '#0088FE', '#00C49F'];
+  }, [formularios, todasRespostas, usuarios, filtroForm, filtroTurma, filtroUsuario, mapaUsuarios]);
 
   if (loading) return <div className="p-10 text-center font-bold">Carregando dados do conselho...</div>;
 
@@ -783,10 +693,6 @@ export default function ComparacaoView() {
                     <p className="text-[10px] font-bold text-green-800 uppercase mb-2">
                       Filtrando por:
                     </p>
-                    <div className="bg-white p-3 rounded-md border">
-                      <p className="text-sm font-medium">{relatorioQualitativo.participantes.find(p => String(p.id) === String(filtroUsuario))?.nome || 'Usuário'}</p>
-                      <p className="text-xs text-gray-500">{relatorioQualitativo.participantes.find(p => String(p.id) === String(filtroUsuario))?.perfil || 'Perfil não informado'}</p>
-                    </div>
                   </div>
                 ) : (
                   <div className="border-t border-green-200 pt-3">
@@ -795,30 +701,31 @@ export default function ComparacaoView() {
                     </p>
 
                     <ul className="text-sm text-green-900 space-y-1 max-h-64 overflow-y-auto pr-1">
-                      {relatorioQualitativo.participantes.map((p) => (
-                        <li key={p.id}>
-                          <button
-                            onClick={() => setFiltroUsuario(p.id)}
-                            className={`flex items-center gap-2 w-full text-left p-2 rounded-md transition-all ${
-                              String(filtroUsuario) === String(p.id)
-                                ? 'bg-green-800 text-white shadow-md'
-                                : 'hover:bg-green-200 bg-white/60'
-                            }`}
-                          >
-                            <span className={`w-2 h-2 rounded-full ${
-                              String(filtroUsuario) === String(p.id)
-                                ? 'bg-white'
-                                : 'bg-green-500'
-                            }`}></span>
-                            <span className="truncate text-xs font-medium">
-                              {p.nome}
-                            </span>
-                            <span className="text-xs text-gray-500 ml-auto">
-                              {p.perfil}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
+                      {relatorioQualitativo.participantes
+                        .sort((a, b) => a.nome.localeCompare(b.nome))
+                        .map((p) => (
+                          <li key={p.id}>
+                            <button
+                              onClick={() => setFiltroUsuario(p.id)}
+                              className={`flex flex-col items-start w-full text-left p-2 rounded-md transition-all ${
+                                String(filtroUsuario) === String(p.id)
+                                  ? 'bg-green-800 text-white shadow-md'
+                                  : 'hover:bg-green-200 bg-white/60'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 w-full">
+                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                  String(filtroUsuario) === String(p.id)
+                                    ? 'bg-white'
+                                    : 'bg-green-500'
+                                }`}></span>
+                                <span className="truncate text-xs font-medium text-left flex-1">
+                                  {p.nome || 'Usuário não identificado'}
+                                </span>
+                              </div>
+                            </button>
+                          </li>
+                        ))}
                     </ul>
                   </div>
                 )}
